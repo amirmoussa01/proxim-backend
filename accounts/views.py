@@ -226,21 +226,20 @@ def mon_profil(request):
     data = UserSerializer(user).data
 
     if user.is_client:
-        try:
-            profile = ClientProfile.objects.get(user=user)
-            data['profil'] = ClientProfileSerializer(profile).data
-        except ClientProfile.DoesNotExist:
-            data['profil'] = None
+        profile, created = ClientProfile.objects.get_or_create(
+            user=user,
+            defaults={'nom': '', 'prenom': ''}
+        )
+        data['profil'] = ClientProfileSerializer(profile).data
 
     elif user.is_prestataire:
-        try:
-            profile = PrestatireProfile.objects.get(user=user)
-            data['profil'] = PrestatireProfileSerializer(profile).data
-        except PrestatireProfile.DoesNotExist:
-            data['profil'] = None
+        profile, created = PrestatireProfile.objects.get_or_create(
+            user=user,
+            defaults={'nom': '', 'prenom': '', 'bio': ''}
+        )
+        data['profil'] = PrestatireProfileSerializer(profile).data
 
     return Response(data, status=status.HTTP_200_OK)
-
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
