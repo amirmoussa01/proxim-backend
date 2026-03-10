@@ -1,1 +1,1 @@
-web: python manage.py collectstatic --noinput && python manage.py migrate && gunicorn proxim.wsgi:application --bind 0.0.0.0:$PORT
+web: python manage.py create_superuser_prod && python manage.py collectstatic --noinput && python manage.py migrate && gunicorn
