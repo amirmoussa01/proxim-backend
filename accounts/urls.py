@@ -14,6 +14,8 @@ urlpatterns = [
     path('connexion/', views.connexion, name='connexion'),
     path('connexion/google/', views.connexion_google, name='connexion-google'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
+    path('mot-de-passe-oublie/', views.mot_de_passe_oublie),
+    path('reinitialisation-mot-de-passe/', views.reinitialisation_mot_de_passe),
 
     # Profil
     path('profil/', views.mon_profil, name='mon-profil'),

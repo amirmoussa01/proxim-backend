@@ -19,6 +19,8 @@ from .serializers import (
     PrestatireProfileSerializer,
     GoogleAuthSerializer,
 )
+import random
+import string
 
 User = get_user_model()
 
@@ -165,7 +167,58 @@ def connexion_google(request):
             )
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def mot_de_passe_oublie(request):
+    email = request.data.get('email')
+    if not email:
+        return Response({'error': 'Email obligatoire'}, status=400)
 
+    try:
+        user = User.objects.get(email=email)
+        code = ''.join(random.choices(string.digits, k=6))
+        user.email_verification_code = code
+        user.save()
+
+        from .serializers import envoyer_email_brevo
+        envoyer_email_brevo(
+            destinataire=user.email,
+            sujet='Proxim - Reinitialisation mot de passe',
+            contenu=f'Votre code de reinitialisation est : {code}',
+        )
+        return Response({'message': 'Code envoye'})
+    except User.DoesNotExist:
+        return Response({'error': 'Aucun compte avec cet email'}, status=404)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def reinitialisation_mot_de_passe(request):
+    email = request.data.get('email')
+    code = request.data.get('code')
+    nouveau_password = request.data.get('nouveau_password')
+    password2 = request.data.get('password2')
+
+    if not all([email, code, nouveau_password, password2]):
+        return Response({'error': 'Tous les champs sont obligatoires'}, status=400)
+
+    if nouveau_password != password2:
+        return Response({'error': 'Les mots de passe ne correspondent pas'}, status=400)
+
+    if len(nouveau_password) < 8:
+        return Response({'error': 'Minimum 8 caracteres'}, status=400)
+
+    try:
+        user = User.objects.get(email=email)
+        if user.email_verification_code != code:
+            return Response({'error': 'Code incorrect'}, status=400)
+
+        user.set_password(nouveau_password)
+        user.email_verification_code = ''
+        user.save()
+        return Response({'message': 'Mot de passe reinitialise avec succes'})
+    except User.DoesNotExist:
+        return Response({'error': 'Aucun compte avec cet email'}, status=404)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def mon_profil(request):
