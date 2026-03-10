@@ -1,0 +1,24 @@
+from django.urls import path
+from rest_framework_simplejwt.views import TokenRefreshView
+from . import views
+
+urlpatterns = [
+    # Inscription
+    path('inscription/client/', views.inscription_client, name='inscription-client'),
+    path('inscription/prestataire/', views.inscription_prestatire, name='inscription-prestataire'),
+
+    # Verification email
+    path('verification-email/', views.verification_email, name='verification-email'),
+
+    # Connexion
+    path('connexion/', views.connexion, name='connexion'),
+    path('connexion/google/', views.connexion_google, name='connexion-google'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
+
+    # Profil
+    path('profil/', views.mon_profil, name='mon-profil'),
+    path('profil/modifier/', views.modifier_profil, name='modifier-profil'),
+
+    # Deconnexion
+    path('deconnexion/', views.deconnexion, name='deconnexion'),
+]
