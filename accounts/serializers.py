@@ -4,7 +4,30 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.utils.crypto import get_random_string
 from .models import ClientProfile, PrestatireProfile, KYCDocument
+import sib_api_v3_sdk
+from sib_api_v3_sdk.rest import ApiException
 
+
+def envoyer_email_brevo(destinataire, sujet, contenu):
+    configuration = sib_api_v3_sdk.Configuration()
+    configuration.api_key['api-key'] = settings.BREVO_API_KEY
+
+    api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
+        sib_api_v3_sdk.ApiClient(configuration)
+    )
+
+    send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+        to=[{"email": destinataire}],
+        sender={"email": "alamiralamir979@gmail.com", "name": "Proxim"},
+        subject=sujet,
+        text_content=contenu,
+    )
+
+    try:
+        api_instance.send_transac_email(send_smtp_email)
+        return True
+    except ApiException:
+        return False
 User = get_user_model()
 
 
@@ -41,12 +64,10 @@ class InscriptionClientSerializer(serializers.ModelSerializer):
         user.email_verification_code = code
         user.save()
 
-        send_mail(
-            subject='Proxim - Verification email',
-            message=f'Votre code de verification est : {code}',
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=True,
+        envoyer_email_brevo(
+            destinataire=user.email,
+            sujet='Proxim - Verification email',
+            contenu=f'Votre code de verification est : {code}',
         )
 
         return user
@@ -98,12 +119,10 @@ class InscriptionPrestatireSerializer(serializers.ModelSerializer):
         user.email_verification_code = code
         user.save()
 
-        send_mail(
-            subject='Proxim - Verification email',
-            message=f'Votre code de verification est : {code}',
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=True,
+        envoyer_email_brevo(
+            destinataire=user.email,
+            sujet='Proxim - Verification email',
+            contenu=f'Votre code de verification est : {code}',
         )
 
         return user
