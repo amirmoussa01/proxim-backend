@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.contrib.auth.models import AbstractUser, BaseUserManager
-
+from cloudinary.models import CloudinaryField
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -63,7 +63,7 @@ class ClientProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='client_profile')
     nom = models.CharField(max_length=100, blank=True)
     prenom = models.CharField(max_length=100, blank=True)
-    avatar = models.ImageField(upload_to='avatars/clients/', blank=True, null=True)
+    avatar = CloudinaryField('avatar', blank=True, null=True)    
     adresse = models.CharField(max_length=255, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
@@ -94,7 +94,7 @@ class PrestatireProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='prestatire_profile')
     nom = models.CharField(max_length=100, blank=True)
     prenom = models.CharField(max_length=100, blank=True)
-    avatar = models.ImageField(upload_to='avatars/prestatires/', blank=True, null=True)
+    avatar = CloudinaryField('avatar', blank=True, null=True)    
     bio = models.TextField(blank=True)
     adresse = models.CharField(max_length=255, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
@@ -143,7 +143,7 @@ class KYCDocument(models.Model):
         PrestatireProfile, on_delete=models.CASCADE, related_name='kyc_documents'
     )
     type_document = models.CharField(max_length=20, choices=TYPE_CHOICES)
-    fichier = models.FileField(upload_to='kyc/')
+    fichier = CloudinaryField('kyc', blank=True, null=True)
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default=STATUT_ATTENTE)
     date_soumission = models.DateTimeField(auto_now_add=True)
     date_validation = models.DateTimeField(blank=True, null=True)
