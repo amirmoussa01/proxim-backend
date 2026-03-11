@@ -146,13 +146,13 @@ class UserSerializer(serializers.ModelSerializer):
 
 class ClientProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
-    avatar = serializers.SerializerMethodField()
+    avatar_url = serializers.SerializerMethodField()
 
     class Meta:
         model = ClientProfile
         fields = '__all__'
 
-    def get_avatar(self, obj):
+    def get_avatar_url(self, obj):
         if obj.avatar:
             return obj.avatar.url
         return None
@@ -160,16 +160,15 @@ class ClientProfileSerializer(serializers.ModelSerializer):
 
 class PrestatireProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
-    avatar = serializers.SerializerMethodField()
+    avatar_url = serializers.SerializerMethodField()
 
     class Meta:
         model = PrestatireProfile
         fields = '__all__'
 
-    def get_avatar(self, obj):
+    def get_avatar_url(self, obj):
         if obj.avatar:
             return obj.avatar.url
         return None
-
 class GoogleAuthSerializer(serializers.Serializer):
     id_token = serializers.CharField()
