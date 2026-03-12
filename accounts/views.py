@@ -281,3 +281,43 @@ def deconnexion(request):
         return Response({'message': 'Deconnexion reussie.'}, status=status.HTTP_200_OK)
     except Exception:
         return Response({'error': 'Token invalide'}, status=status.HTTP_400_BAD_REQUEST)
+    
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def changer_mot_de_passe(request):
+    user = request.user
+    ancien = request.data.get('ancien_mot_de_passe')
+    nouveau = request.data.get('nouveau_mot_de_passe')
+    confirmation = request.data.get('confirmation')
+
+    if not all([ancien, nouveau, confirmation]):
+        return Response({'error': 'Tous les champs sont obligatoires'}, status=400)
+
+    if not user.check_password(ancien):
+        return Response({'error': 'Ancien mot de passe incorrect'}, status=400)
+
+    if nouveau != confirmation:
+        return Response({'error': 'Les mots de passe ne correspondent pas'}, status=400)
+
+    if len(nouveau) < 8:
+        return Response({'error': 'Minimum 8 caractères'}, status=400)
+
+    user.set_password(nouveau)
+    user.save()
+    return Response({'message': 'Mot de passe modifié avec succès'})
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def supprimer_compte(request):
+    user = request.user
+    password = request.data.get('password')
+
+    if not password:
+        return Response({'error': 'Mot de passe obligatoire'}, status=400)
+
+    if not user.check_password(password):
+        return Response({'error': 'Mot de passe incorrect'}, status=400)
+
+    user.is_active = False
+    user.save()
+    return Response({'message': 'Compte désactivé avec succès'})
