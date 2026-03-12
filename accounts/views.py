@@ -23,6 +23,8 @@ from .serializers import (
 import random
 import string
 
+
+
 User = get_user_model()
 
 
@@ -378,3 +380,66 @@ def mes_kyc(request):
         })
 
     return Response(data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dashboard_prestataire(request):
+    user = request.user
+    if not user.is_prestataire:
+        return Response({'error': 'Reserve aux prestataires'}, status=403)
+
+    try:
+        profil = PrestatireProfile.objects.get(user=user)
+    except PrestatireProfile.DoesNotExist:
+        return Response({'error': 'Profil introuvable'}, status=404)
+
+    from services.models import Service
+    from orders.models import Order
+    from payments.models import Wallet
+
+    services_actifs = Service.objects.filter(
+        prestatire=profil, is_available=True
+    ).count()
+    total_services = Service.objects.filter(prestatire=profil).count()
+
+    commandes_en_attente = Order.objects.filter(
+        prestatire=profil, statut='EN_NEGOCIATION'
+    ).count()
+    total_commandes = Order.objects.filter(prestatire=profil).count()
+    commandes_terminees = Order.objects.filter(
+        prestatire=profil, statut='TERMINE'
+    ).count()
+
+    commandes_recentes = Order.objects.filter(
+        prestatire=profil
+    ).select_related('client', 'service').order_by('-date_commande')[:5]
+
+    recentes_data = []
+    for cmd in commandes_recentes:
+        recentes_data.append({
+            'id': cmd.id,
+            'service_titre': cmd.service.titre,
+            'client_nom': f'{cmd.client.prenom} {cmd.client.nom}',
+            'statut': cmd.statut,
+            'prix_propose': str(cmd.prix_propose) if cmd.prix_propose else None,
+            'date_commande': cmd.date_commande.strftime('%d/%m/%Y'),
+        })
+
+    wallet = Wallet.objects.filter(user=user).first()
+    solde = str(wallet.solde) if wallet else '0'
+    devise = wallet.devise if wallet else 'FCFA'
+
+    return Response({
+        'services_actifs': services_actifs,
+        'total_services': total_services,
+        'commandes_en_attente': commandes_en_attente,
+        'total_commandes': total_commandes,
+        'commandes_terminees': commandes_terminees,
+        'note_moyenne': str(profil.note_moyenne),
+        'nombre_avis': profil.nombre_avis,
+        'niveau': profil.niveau,
+        'is_verified': profil.is_verified,
+        'solde': solde,
+        'devise': devise,
+        'commandes_recentes': recentes_data,
+    })

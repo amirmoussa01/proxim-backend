@@ -24,7 +24,7 @@ urlpatterns = [
     # Profil
     path('profil/', views.mon_profil, name='mon-profil'),
     path('profil/modifier/', views.modifier_profil, name='modifier-profil'),
-
+    path('dashboard/', views.dashboard_prestataire, name='dashboard-prestataire'),
     # Deconnexion
     path('deconnexion/', views.deconnexion, name='deconnexion'),
 ]
