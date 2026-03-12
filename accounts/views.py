@@ -352,3 +352,29 @@ def soumettre_kyc(request):
         'id': kyc.id,
         'statut': kyc.statut,
     }, status=201)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def mes_kyc(request):
+    user = request.user
+    if not user.is_prestataire:
+        return Response({'error': 'Reserve aux prestataires'}, status=403)
+
+    try:
+        profil = PrestatireProfile.objects.get(user=user)
+    except PrestatireProfile.DoesNotExist:
+        return Response({'error': 'Profil introuvable'}, status=404)
+
+    kycs = KYCDocument.objects.filter(prestatire=profil).order_by('-date_soumission')
+
+    data = []
+    for kyc in kycs:
+        data.append({
+            'id': kyc.id,
+            'type_document': kyc.type_document,
+            'statut': kyc.statut,
+            'date_soumission': kyc.date_soumission.strftime('%d/%m/%Y'),
+            'fichier_url': kyc.fichier.url if kyc.fichier else None,
+        })
+
+    return Response(data)
