@@ -18,6 +18,7 @@ from .serializers import (
     ClientProfileSerializer,
     PrestatireProfileSerializer,
     GoogleAuthSerializer,
+    KYCDocument
 )
 import random
 import string
@@ -321,3 +322,33 @@ def supprimer_compte(request):
     user.is_active = False
     user.save()
     return Response({'message': 'Compte désactivé avec succès'})
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def soumettre_kyc(request):
+    user = request.user
+    if not user.is_prestataire:
+        return Response({'error': 'Reserve aux prestataires'}, status=403)
+
+    try:
+        profil = PrestatireProfile.objects.get(user=user)
+    except PrestatireProfile.DoesNotExist:
+        return Response({'error': 'Profil introuvable'}, status=404)
+
+    type_document = request.data.get('type_document')
+    fichier = request.FILES.get('document')
+
+    if not type_document or not fichier:
+        return Response({'error': 'Type et document obligatoires'}, status=400)
+
+    kyc = KYCDocument.objects.create(
+        prestatire=profil,
+        type_document=type_document,
+        fichier=fichier,
+    )
+
+    return Response({
+        'message': 'Document soumis avec succes',
+        'id': kyc.id,
+        'statut': kyc.statut,
+    }, status=201)

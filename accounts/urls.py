@@ -18,6 +18,7 @@ urlpatterns = [
     path('reinitialisation-mot-de-passe/', views.reinitialisation_mot_de_passe),
     path('changer-mot-de-passe/', views.changer_mot_de_passe, name='changer-mot-de-passe'),
     path('supprimer-compte/', views.supprimer_compte, name='supprimer-compte'),
+    path('kyc/soumettre/', views.soumettre_kyc, name='soumettre-kyc'),
 
     # Profil
     path('profil/', views.mon_profil, name='mon-profil'),

@@ -24,6 +24,8 @@ class User(AbstractUser):
     ROLE_CLIENT = 'client'
     ROLE_PRESTATAIRE = 'prestataire'
     ROLE_ADMIN = 'admin'
+    ROLE_ADMIN = 'admin'
+
 
     ROLE_CHOICES = [
         (ROLE_CLIENT, 'Client'),
@@ -120,13 +122,15 @@ class PrestatireProfile(models.Model):
 
 class KYCDocument(models.Model):
     TYPE_CNI = 'CNI'
-    TYPE_SELFIE = 'selfie'
-    TYPE_JUSTIFICATIF = 'justificatif'
+    TYPE_PASSEPORT = 'PASSEPORT'
+    TYPE_PERMIS = 'PERMIS'
+    TYPE_AUTRE = 'AUTRE'
 
     TYPE_CHOICES = [
         (TYPE_CNI, 'Carte Nationale Identite'),
-        (TYPE_SELFIE, 'Selfie'),
-        (TYPE_JUSTIFICATIF, 'Justificatif adresse'),
+        (TYPE_PASSEPORT, 'Passeport'),
+        (TYPE_PERMIS, 'Permis de conduire'),
+        (TYPE_AUTRE, 'Autre'),
     ]
 
     STATUT_ATTENTE = 'en_attente'
