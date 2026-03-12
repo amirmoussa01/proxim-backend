@@ -1,5 +1,5 @@
 from django.db import models
-
+from cloudinary.models import CloudinaryField
 
 class Category(models.Model):
     nom = models.CharField(max_length=100)
@@ -60,7 +60,7 @@ class Service(models.Model):
 
 class ServiceImage(models.Model):
     service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to='services/')
+    image = CloudinaryField('service_image', blank=True, null=True)
     is_principale = models.BooleanField(default=False)
     ordre = models.PositiveIntegerField(default=0)
 

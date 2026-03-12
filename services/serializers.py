@@ -23,11 +23,17 @@ class ServiceParameterSerializer(serializers.ModelSerializer):
 
 
 class ServiceImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = ServiceImage
         fields = '__all__'
 
-
+    def get_image_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        return None
+    
 class AvailabilitySerializer(serializers.ModelSerializer):
     class Meta:
         model = Availability
