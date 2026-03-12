@@ -64,7 +64,7 @@ class ServiceCreateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         pricing_type = data.get('pricing_type')
         prix_base = data.get('prix_base')
-        if pricing_type != 'SUR_DEVIS' and not prix_base:
+        if pricing_type and pricing_type != 'SUR_DEVIS' and not prix_base:
             raise serializers.ValidationError(
                 'prix_base est obligatoire sauf pour les services sur devis'
             )
