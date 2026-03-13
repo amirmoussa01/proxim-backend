@@ -94,3 +94,24 @@ class Favorite(models.Model):
 
     def __str__(self):
         return f'Favori - {self.client} - {self.prestatire}'
+
+class FavoriService(models.Model):
+    client = models.ForeignKey(
+        'accounts.ClientProfile',
+        on_delete=models.CASCADE,
+        related_name='favoris_services'
+    )
+    service = models.ForeignKey(
+        'services.Service',
+        on_delete=models.CASCADE,
+        related_name='favoris'
+    )
+    date = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Favori Service'
+        verbose_name_plural = 'Favoris Services'
+        unique_together = ('client', 'service')
+
+    def __str__(self):
+        return f'Favori - {self.client} - {self.service.titre}'

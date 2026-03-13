@@ -11,8 +11,44 @@ from .serializers import (
     CommentSerializer,
     FavoriteSerializer,
 )
+from .models import Post, Favorite, FavoriService
+from accounts.models import ClientProfile
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def toggle_favori_service(request):
+    service_id = request.data.get('service')
+    if not service_id:
+        return Response({'error': 'service requis'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        client = request.user.client_profile
+    except Exception:
+        return Response({'error': 'Profil client introuvable'}, status=status.HTTP_403_FORBIDDEN)
+    try:
+        from services.models import Service
+        service = Service.objects.get(id=service_id)
+    except Exception:
+        return Response({'error': 'Service introuvable'}, status=status.HTTP_404_NOT_FOUND)
+    
+    favori, created = FavoriService.objects.get_or_create(client=client, service=service)
+    if not created:
+        favori.delete()
+        return Response({'favori': False})
+    return Response({'favori': True}, status=status.HTTP_201_CREATED)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def mes_favoris_services(request):
+    try:
+        client = request.user.client_profile
+    except Exception:
+        return Response({'error': 'Profil client introuvable'}, status=status.HTTP_403_FORBIDDEN)
+    favoris = FavoriService.objects.filter(client=client).select_related('service')
+    from services.serializers import ServiceSerializer
+    services = [f.service for f in favoris]
+    data = ServiceSerializer(services, many=True).data
+    return Response(data)
 # ─── POSTS ────────────────────────────────────────────────────
 
 @api_view(['GET'])

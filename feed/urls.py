@@ -18,7 +18,11 @@ urlpatterns = [
     path('<int:pk>/commenter/', views.ajouter_commentaire, name='ajouter-commentaire'),
     path('commentaires/<int:pk>/supprimer/', views.supprimer_commentaire, name='supprimer-commentaire'),
 
-    # Favoris
+    # Favoris prestataires
     path('favoris/', views.mes_favoris, name='mes-favoris'),
     path('favoris/toggle/', views.toggle_favori, name='toggle-favori'),
+
+    # Favoris services
+    path('favoris/services/toggle/', views.toggle_favori_service, name='toggle-favori-service'),
+    path('favoris/services/', views.mes_favoris_services, name='mes-favoris-services'),
 ]
