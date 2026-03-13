@@ -6,7 +6,7 @@ from accounts.serializers import ClientProfileSerializer, PrestatireProfileSeria
 class MessageSerializer(serializers.ModelSerializer):
     expediteur_email = serializers.CharField(source='expediteur.email', read_only=True)
     contenu_affiche = serializers.SerializerMethodField()
-    is_mine = serializers.SerializerMethodField() 
+    is_mine = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
@@ -18,11 +18,12 @@ class MessageSerializer(serializers.ModelSerializer):
             return 'Message supprime'
         return obj.contenu
 
-def get_is_mine(self, obj):  # ← ajoute
+    def get_is_mine(self, obj):
         request = self.context.get('request')
-        if request:
+        if request and hasattr(request, 'user'):
             return obj.expediteur == request.user
         return False
+
 
 class MessageCreateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -50,11 +51,13 @@ class ConversationSerializer(serializers.ModelSerializer):
     def get_dernier_message(self, obj):
         dernier = obj.messages.filter(is_deleted=False).last()
         if dernier:
-            return MessageSerializer(dernier, context=self.context).data  # ← ajoute context=self.context
+            return MessageSerializer(dernier, context=self.context).data
         return None
 
     def get_messages_non_lus(self, obj):
-        user = self.context.get('request').user
-        return obj.messages.filter(is_read=False, is_deleted=False).exclude(
-            expediteur=user
-        ).count()
+        request = self.context.get('request')
+        if not request:
+            return 0
+        return obj.messages.filter(
+            is_read=False, is_deleted=False
+        ).exclude(expediteur=request.user).count()
