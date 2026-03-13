@@ -17,40 +17,29 @@ from notifications.utils import notif_nouveau_message
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def mes_conversations(request):
-    user = request.user
-
-    if user.is_client:
-        try:
+    import traceback
+    try:
+        user = request.user
+        if user.is_client:
             conversations = Conversation.objects.filter(
                 client=user.client_profile
             ).prefetch_related('messages').select_related('prestatire')
-        except Exception:
-            return Response(
-                {'error': 'Profil client introuvable'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-    elif user.is_prestataire:
-        try:
+        elif user.is_prestataire:
             conversations = Conversation.objects.filter(
                 prestatire=user.prestatire_profile
             ).prefetch_related('messages').select_related('client')
-        except Exception:
-            return Response(
-                {'error': 'Profil prestataire introuvable'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-    else:
-        return Response(
-            {'error': 'Acces refuse'},
-            status=status.HTTP_403_FORBIDDEN
+        else:
+            return Response({'error': 'Acces refuse'}, status=403)
+
+        serializer = ConversationSerializer(
+            conversations, many=True, context={'request': request}
         )
-
-    serializer = ConversationSerializer(
-        conversations, many=True, context={'request': request}
-    )
-    return Response(serializer.data)
-
+        return Response(serializer.data)
+    except Exception as e:
+        return Response(
+            {'error': str(e), 'trace': traceback.format_exc()},
+            status=500
+        )
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
