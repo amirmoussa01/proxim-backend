@@ -33,11 +33,16 @@ class ServiceImageSerializer(serializers.ModelSerializer):
         if obj.image:
             return obj.image.url
         return None
-    
+
+
 class AvailabilitySerializer(serializers.ModelSerializer):
     class Meta:
         model = Availability
         fields = '__all__'
+
+
+class PrestatireDetailSerializer(serializers.SerializerMethodField):
+    pass
 
 
 class ServiceSerializer(serializers.ModelSerializer):
@@ -46,6 +51,8 @@ class ServiceSerializer(serializers.ModelSerializer):
     disponibilites = AvailabilitySerializer(many=True, read_only=True)
     categorie_nom = serializers.CharField(source='categorie.nom', read_only=True)
     prestatire_nom = serializers.SerializerMethodField()
+    prestatire_detail = serializers.SerializerMethodField()
+    note_moyenne = serializers.SerializerMethodField()
 
     class Meta:
         model = Service
@@ -54,6 +61,25 @@ class ServiceSerializer(serializers.ModelSerializer):
 
     def get_prestatire_nom(self, obj):
         return f'{obj.prestatire.prenom} {obj.prestatire.nom}'
+
+    def get_prestatire_detail(self, obj):
+        p = obj.prestatire
+        avatar_url = None
+        if p.avatar:
+            avatar_url = p.avatar.url
+        nb_services = p.services.filter(is_available=True).count()
+        return {
+            'id': p.id,
+            'nom': f'{p.prenom} {p.nom}',
+            'niveau': p.niveau,
+            'is_verified': p.is_verified,
+            'avatar_url': avatar_url,
+            'nb_services': nb_services,
+            'bio': getattr(p, 'bio', ''),
+        }
+
+    def get_note_moyenne(self, obj):
+        return None
 
 
 class ServiceCreateSerializer(serializers.ModelSerializer):
