@@ -108,10 +108,11 @@ def notif_nouveau_message(message):
 
     if expediteur == conversation.client.user:
         destinataire = conversation.prestatire.user
-        nom_expediteur = f'{conversation.client.prenom} {conversation.client.nom}'
+        # ← utilise user.prenom / user.nom
+        nom_expediteur = f'{conversation.client.user.prenom} {conversation.client.user.nom}'
     else:
         destinataire = conversation.client.user
-        nom_expediteur = f'{conversation.prestatire.prenom} {conversation.prestatire.nom}'
+        nom_expediteur = f'{conversation.prestatire.user.prenom} {conversation.prestatire.user.nom}'
 
     notifier(
         destinataire=destinataire,
@@ -121,7 +122,6 @@ def notif_nouveau_message(message):
         objet_id=conversation.id,
         objet_type='conversation',
     )
-
 
 # ─── PAIEMENTS ────────────────────────────────────────────────
 

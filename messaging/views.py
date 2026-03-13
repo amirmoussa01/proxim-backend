@@ -136,7 +136,7 @@ def messages_conversation(request, pk):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-@parser_classes([MultiPartParser, FormParser, JSONParser])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
 def envoyer_message(request, pk):
     user = request.user
 
@@ -162,15 +162,18 @@ def envoyer_message(request, pk):
             conversation=conversation,
             expediteur=user,
         )
-        notif_nouveau_message(message)
+        # Sécurisé — ne bloque pas si la notif plante
+        try:
+            notif_nouveau_message(message)
+        except Exception:
+            pass
         conversation.dernier_message_date = timezone.now()
         conversation.save()
         return Response(
-            MessageSerializer(message).data,
+            MessageSerializer(message, context={'request': request}).data,
             status=status.HTTP_201_CREATED
         )
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
