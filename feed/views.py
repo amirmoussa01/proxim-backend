@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view, permission_classes, parser_class
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
-from .models import Post, PostImage, Like, Comment, Favorite
+from .models import Post, PostImage, Like, Comment, Favorite, FavoriService
 from .serializers import (
     PostSerializer,
     PostCreateSerializer,
@@ -11,7 +11,6 @@ from .serializers import (
     CommentSerializer,
     FavoriteSerializer,
 )
-from .models import Post, Favorite, FavoriService
 from accounts.models import ClientProfile
 
 @api_view(['POST'])
