@@ -130,7 +130,7 @@ def messages_conversation(request, pk):
     ).exclude(expediteur=user).update(is_read=True)
 
     messages = conversation.messages.all()
-    serializer = MessageSerializer(messages, many=True)
+    serializer = MessageSerializer(messages, many=True, context={'request': request})
     return Response(serializer.data)
 
 

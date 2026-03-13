@@ -6,6 +6,7 @@ from accounts.serializers import ClientProfileSerializer, PrestatireProfileSeria
 class MessageSerializer(serializers.ModelSerializer):
     expediteur_email = serializers.CharField(source='expediteur.email', read_only=True)
     contenu_affiche = serializers.SerializerMethodField()
+    is_mine = serializers.SerializerMethodField() 
 
     class Meta:
         model = Message
@@ -17,6 +18,11 @@ class MessageSerializer(serializers.ModelSerializer):
             return 'Message supprime'
         return obj.contenu
 
+def get_is_mine(self, obj):  # ← ajoute
+        request = self.context.get('request')
+        if request:
+            return obj.expediteur == request.user
+        return False
 
 class MessageCreateSerializer(serializers.ModelSerializer):
     class Meta:
