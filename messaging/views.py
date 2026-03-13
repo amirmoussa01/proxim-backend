@@ -5,12 +5,9 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from django.utils import timezone
 from .models import Conversation, Message
-from .serializers import (
-    ConversationSerializer,
-    MessageSerializer,
-    MessageCreateSerializer,
-)
+from .serializers import ConversationSerializer, MessageSerializer
 from notifications.utils import notif_nouveau_message
+import cloudinary.uploader
 
 # ─── CONVERSATIONS ────────────────────────────────────────────
 
@@ -49,6 +46,7 @@ def mes_conversations(request):
         conversations, many=True, context={'request': request}
     )
     return Response(serializer.data)
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -108,9 +106,11 @@ def messages_conversation(request, pk):
 
     try:
         if user.is_client:
-            conversation = Conversation.objects.get(pk=pk, client=user.client_profile)
+            conversation = Conversation.objects.get(
+                pk=pk, client=user.client_profile)
         elif user.is_prestataire:
-            conversation = Conversation.objects.get(pk=pk, prestatire=user.prestatire_profile)
+            conversation = Conversation.objects.get(
+                pk=pk, prestatire=user.prestatire_profile)
         else:
             return Response(
                 {'error': 'Acces refuse'},
@@ -128,7 +128,9 @@ def messages_conversation(request, pk):
     ).exclude(expediteur=user).update(is_read=True)
 
     messages = conversation.messages.all()
-    serializer = MessageSerializer(messages, many=True, context={'request': request})
+    serializer = MessageSerializer(
+        messages, many=True, context={'request': request}
+    )
     return Response(serializer.data)
 
 
@@ -140,9 +142,11 @@ def envoyer_message(request, pk):
 
     try:
         if user.is_client:
-            conversation = Conversation.objects.get(pk=pk, client=user.client_profile)
+            conversation = Conversation.objects.get(
+                pk=pk, client=user.client_profile)
         elif user.is_prestataire:
-            conversation = Conversation.objects.get(pk=pk, prestatire=user.prestatire_profile)
+            conversation = Conversation.objects.get(
+                pk=pk, prestatire=user.prestatire_profile)
         else:
             return Response(
                 {'error': 'Acces refuse'},
@@ -154,24 +158,50 @@ def envoyer_message(request, pk):
             status=status.HTTP_404_NOT_FOUND
         )
 
-    serializer = MessageCreateSerializer(data=request.data)
-    if serializer.is_valid():
-        message = serializer.save(
-            conversation=conversation,
-            expediteur=user,
-        )
-        # Sécurisé — ne bloque pas si la notif plante
+    contenu = request.data.get('contenu', '')
+    image_url = None
+
+    # Upload image sur Cloudinary si présente
+    if 'image' in request.FILES:
         try:
-            notif_nouveau_message(message)
-        except Exception:
-            pass
-        conversation.dernier_message_date = timezone.now()
-        conversation.save()
+            result = cloudinary.uploader.upload(
+                request.FILES['image'],
+                folder='messages/',
+                resource_type='image',
+            )
+            image_url = result.get('secure_url')
+        except Exception as e:
+            return Response(
+                {'error': f'Erreur upload image : {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    if not contenu and not image_url:
         return Response(
-            MessageSerializer(message, context={'request': request}).data,
-            status=status.HTTP_201_CREATED
+            {'error': 'Un message doit contenir du texte ou une image'},
+            status=status.HTTP_400_BAD_REQUEST
         )
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    message = Message.objects.create(
+        conversation=conversation,
+        expediteur=user,
+        contenu=contenu,
+        image=image_url,
+    )
+
+    try:
+        notif_nouveau_message(message)
+    except Exception:
+        pass
+
+    conversation.dernier_message_date = timezone.now()
+    conversation.save()
+
+    return Response(
+        MessageSerializer(message, context={'request': request}).data,
+        status=status.HTTP_201_CREATED
+    )
+
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
@@ -201,16 +231,18 @@ def total_non_lus(request):
 
     if user.is_client:
         try:
-            conversations = Conversation.objects.filter(client=user.client_profile)
+            conversations = Conversation.objects.filter(
+                client=user.client_profile)
         except Exception:
-            return Response({'total': 0})
+            return Response({'total_non_lus': 0})
     elif user.is_prestataire:
         try:
-            conversations = Conversation.objects.filter(prestatire=user.prestatire_profile)
+            conversations = Conversation.objects.filter(
+                prestatire=user.prestatire_profile)
         except Exception:
-            return Response({'total': 0})
+            return Response({'total_non_lus': 0})
     else:
-        return Response({'total': 0})
+        return Response({'total_non_lus': 0})
 
     total = Message.objects.filter(
         conversation__in=conversations,

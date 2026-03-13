@@ -41,7 +41,7 @@ class Message(models.Model):
     )
     expediteur = models.ForeignKey(User, on_delete=models.CASCADE, related_name='messages')
     contenu = models.TextField(blank=True)
-    image = models.ImageField(upload_to='messages/', blank=True, null=True)
+    image = models.URLField(blank=True, null=True)
     is_read = models.BooleanField(default=False)
     is_deleted = models.BooleanField(default=False)
     date_envoi = models.DateTimeField(auto_now_add=True)
