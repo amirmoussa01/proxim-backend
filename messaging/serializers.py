@@ -50,7 +50,7 @@ class ConversationSerializer(serializers.ModelSerializer):
     def get_dernier_message(self, obj):
         dernier = obj.messages.filter(is_deleted=False).last()
         if dernier:
-            return MessageSerializer(dernier).data
+            return MessageSerializer(dernier, context=self.context).data  # ← ajoute context=self.context
         return None
 
     def get_messages_non_lus(self, obj):
