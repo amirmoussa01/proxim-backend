@@ -115,6 +115,18 @@ def creer_post(request):
                 folder='posts/videos/',
                 resource_type='video',
             )
+            # Vérifier la durée — Cloudinary retourne la durée en secondes
+            duration = result.get('duration', 0)
+            if duration > 30:
+                # Supprimer la vidéo uploadée
+                cloudinary.uploader.destroy(
+                    result.get('public_id'),
+                    resource_type='video'
+                )
+                return Response(
+                    {'error': 'La vidéo ne doit pas dépasser 30 secondes'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             video_url = result.get('secure_url')
         except Exception as e:
             return Response(
