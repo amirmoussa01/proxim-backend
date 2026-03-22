@@ -20,6 +20,7 @@ class Post(models.Model):
     contenu = models.TextField()
     is_active = models.BooleanField(default=True)
     date_publication = models.DateTimeField(auto_now_add=True)
+    video_url = models.URLField(blank=True, null=True) 
 
     class Meta:
         verbose_name = 'Post'
@@ -32,7 +33,7 @@ class Post(models.Model):
 
 class PostImage(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to='posts/')
+    image = models.URLField() 
     ordre = models.PositiveIntegerField(default=0)
 
     class Meta:

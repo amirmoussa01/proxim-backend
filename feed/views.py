@@ -12,6 +12,7 @@ from .serializers import (
     FavoriteSerializer,
 )
 from accounts.models import ClientProfile
+import cloudinary.uploader
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -87,6 +88,7 @@ def detail_post(request, pk):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def creer_post(request):
     if not request.user.is_prestataire:
         return Response(
@@ -101,15 +103,67 @@ def creer_post(request):
             status=status.HTTP_404_NOT_FOUND
         )
 
-    serializer = PostCreateSerializer(data=request.data)
-    if serializer.is_valid():
-        post = serializer.save(prestatire=prestatire)
-        return Response(
-            PostSerializer(post, context={'request': request}).data,
-            status=status.HTTP_201_CREATED
-        )
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    contenu = request.data.get('contenu', '')
+    service_id = request.data.get('service', None)
+    video_url = None
 
+    # Upload vidéo si présente
+    if 'video' in request.FILES:
+        try:
+            result = cloudinary.uploader.upload(
+                request.FILES['video'],
+                folder='posts/videos/',
+                resource_type='video',
+            )
+            video_url = result.get('secure_url')
+        except Exception as e:
+            return Response(
+                {'error': f'Erreur upload vidéo : {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    if not contenu and not video_url:
+        return Response(
+            {'error': 'Un post doit contenir du texte ou une vidéo'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    from services.models import Service as Svc
+    service = None
+    if service_id:
+        try:
+            service = Svc.objects.get(pk=service_id)
+        except Exception:
+            pass
+
+    post = Post.objects.create(
+        prestatire=prestatire,
+        contenu=contenu,
+        service=service,
+        video_url=video_url,
+    )
+
+    # Upload images si présentes
+    images = request.FILES.getlist('images')
+    for i, img in enumerate(images):
+        try:
+            result = cloudinary.uploader.upload(
+                img,
+                folder='posts/images/',
+                resource_type='image',
+            )
+            PostImage.objects.create(
+                post=post,
+                image=result.get('secure_url'),
+                ordre=i,
+            )
+        except Exception:
+            pass
+
+    return Response(
+        PostSerializer(post, context={'request': request}).data,
+        status=status.HTTP_201_CREATED
+    )
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
