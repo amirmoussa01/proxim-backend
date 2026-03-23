@@ -163,10 +163,9 @@ def initier_paiement(request):
             }, status=status.HTTP_201_CREATED)
 
         elif methode == 'MOBILE_MONEY':
-            # Fedapay sandbox
-            fedapay_response = initier_fedapay(
+            # kkiapay sandbox
+            fedapay_response = initier_kkiapay(
                 montant=int(montant_total),
-                numero=numero_mobile,
                 description=f'Proxim - Commande #{order.id}',
             )
 
@@ -193,15 +192,13 @@ def initier_paiement(request):
     )
 
 
-def initier_fedapay(montant, numero, description):
-    # Sandbox Fedapay - on simule la reponse pour le dev
+def initier_kkiapay(montant, description):
+    # KKiaPay gère le paiement côté Flutter directement
+    # Le backend reçoit juste la confirmation après succès
     return {
-        'id': f'sandbox_{montant}_{numero}',
-        'status': 'pending',
         'montant': montant,
-        'numero': numero,
         'description': description,
-        'message': 'Paiement Fedapay sandbox initie avec succes',
+        'status': 'pending',
     }
 
 
