@@ -6,6 +6,7 @@ urlpatterns = [
     path('transactions/', views.historique_transactions, name='historique-transactions'),
     path('initier/', views.initier_paiement, name='initier-paiement'),
     path('confirmer/', views.confirmer_paiement_fedapay, name='confirmer-paiement'),
+    path('confirmer-kkiapay/', views.confirmer_paiement_kkiapay, name='confirmer-kkiapay'),  # ← nouveau
     path('historique/', views.historique_paiements, name='historique-paiements'),
     path('retrait/', views.demander_retrait, name='demander-retrait'),
     path('retraits/', views.historique_retraits, name='historique-retraits'),

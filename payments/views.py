@@ -327,3 +327,80 @@ def historique_retraits(request):
         return Response(serializer.data)
     except Exception:
         return Response([], status=status.HTTP_200_OK)
+    
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def confirmer_paiement_kkiapay(request):
+    """
+    Appelé après succès KKiaPay côté Flutter.
+    Reçoit order_id, montant, transaction_id
+    """
+    if not request.user.is_client:
+        return Response(
+            {'error': 'Seuls les clients peuvent payer'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    order_id = request.data.get('order_id')
+    montant = request.data.get('montant')
+    transaction_id = request.data.get('transaction_id')
+
+    if not order_id or not montant or not transaction_id:
+        return Response(
+            {'error': 'order_id, montant et transaction_id requis'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        order = Order.objects.get(
+            id=order_id,
+            client=request.user.client_profile,
+        )
+    except Order.DoesNotExist:
+        return Response(
+            {'error': 'Commande introuvable'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    if hasattr(order, 'payment') and order.payment.statut == 'SUCCES':
+        return Response(
+            {'error': 'Cette commande est deja payee'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    montant_decimal = float(montant)
+    commission = round(montant_decimal * COMMISSION_TAUX, 2)
+    montant_prestataire = round(montant_decimal - commission, 2)
+
+    with db_transaction.atomic():
+        payment, _ = Payment.objects.update_or_create(
+            order=order,
+            defaults={
+                'client': request.user.client_profile,
+                'montant_total': montant_decimal,
+                'commission_plateforme': commission,
+                'montant_prestatire': montant_prestataire,
+                'methode': 'MOBILE_MONEY',
+                'statut': 'SUCCES',
+                'fedapay_transaction_id': str(transaction_id),
+            }
+        )
+
+        crediter_wallet(
+            order.prestatire.user,
+            montant_prestataire,
+            f'Paiement recu commande #{order.id}'
+        )
+
+        try:
+            notif_paiement_recu(payment)
+        except Exception:
+            pass
+
+        order.statut = Order.STATUT_EN_COURS
+        order.save()
+
+    return Response({
+        'message': 'Paiement confirme avec succes !',
+        'payment': PaymentSerializer(payment).data,
+    }, status=status.HTTP_201_CREATED)
