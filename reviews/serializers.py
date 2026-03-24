@@ -24,9 +24,9 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate_order(self, value):
-        if value.statut != 'TERMINE':
+        if value.statut not in ['TERMINE', 'EN_COURS']:  # ← accepte les deux
             raise serializers.ValidationError(
-                'Vous ne pouvez noter que les commandes terminees'
+                'Vous ne pouvez noter que les commandes en cours ou terminees'
             )
         if hasattr(value, 'review'):
             raise serializers.ValidationError(

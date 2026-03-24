@@ -331,10 +331,6 @@ def historique_retraits(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def confirmer_paiement_kkiapay(request):
-    """
-    Appelé après succès KKiaPay côté Flutter.
-    Reçoit order_id, montant, transaction_id
-    """
     if not request.user.is_client:
         return Response(
             {'error': 'Seuls les clients peuvent payer'},
@@ -345,9 +341,9 @@ def confirmer_paiement_kkiapay(request):
     montant = request.data.get('montant')
     transaction_id = request.data.get('transaction_id')
 
-    if not order_id or not montant or not transaction_id:
+    if not order_id or not montant:
         return Response(
-            {'error': 'order_id, montant et transaction_id requis'},
+            {'error': 'order_id et montant requis'},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -364,11 +360,18 @@ def confirmer_paiement_kkiapay(request):
 
     if hasattr(order, 'payment') and order.payment.statut == 'SUCCES':
         return Response(
-            {'error': 'Cette commande est deja payee'},
+            {'message': 'Commande deja payee'},
+            status=status.HTTP_200_OK
+        )
+
+    try:
+        montant_decimal = float(montant)
+    except (ValueError, TypeError):
+        return Response(
+            {'error': 'Montant invalide'},
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    montant_decimal = float(montant)
     commission = round(montant_decimal * COMMISSION_TAUX, 2)
     montant_prestataire = round(montant_decimal - commission, 2)
 
@@ -382,25 +385,24 @@ def confirmer_paiement_kkiapay(request):
                 'montant_prestatire': montant_prestataire,
                 'methode': 'MOBILE_MONEY',
                 'statut': 'SUCCES',
-                'fedapay_transaction_id': str(transaction_id),
+                'fedapay_transaction_id': str(transaction_id or ''),
             }
         )
-
         crediter_wallet(
             order.prestatire.user,
             montant_prestataire,
             f'Paiement recu commande #{order.id}'
         )
-
-        try:
-            notif_paiement_recu(payment)
-        except Exception:
-            pass
-
         order.statut = Order.STATUT_EN_COURS
         order.save()
 
+    # Notif complètement isolée
+    try:
+        notif_paiement_recu(payment)
+    except Exception as e:
+        print(f'Notif paiement error: {e}')  # log mais ne bloque pas
+
     return Response({
-        'message': 'Paiement confirme avec succes !',
+        'message': 'Paiement confirme !',
         'payment': PaymentSerializer(payment).data,
     }, status=status.HTTP_201_CREATED)
