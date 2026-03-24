@@ -150,11 +150,14 @@ def notif_retrait_traite(retrait):
 # ─── AVIS ─────────────────────────────────────────────────────
 
 def notif_nouvel_avis(review):
+    # ← ClientProfile a user.prenom/user.nom, pas prenom/nom directement
+    prenom = review.client.user.prenom if hasattr(review.client, 'user') else ''
+    nom = review.client.user.nom if hasattr(review.client, 'user') else ''
     notifier(
         destinataire=review.prestatire.user,
         type_notif='NOUVEL_AVIS',
         titre='Nouvel avis',
-        contenu=f'{review.client.prenom} {review.client.nom} vous a laisse un avis {review.note}/5',
+        contenu=f'{prenom} {nom} vous a laisse un avis {review.note}/5',
         objet_id=review.id,
         objet_type='review',
     )

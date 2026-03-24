@@ -37,10 +37,13 @@ def creer_avis(request):
         stats = Review.objects.filter(prestatire=prestatire).aggregate(
             moyenne=Avg('note'), total=Count('id')
         )
-        notif_nouvel_avis(review)
-        prestatire.note_moyenne = stats['moyenne'] or 0
-        prestatire.nombre_avis = stats['total'] or 0
-        prestatire.save()
+        try:
+            notif_nouvel_avis(review)
+            prestatire.note_moyenne = stats['moyenne'] or 0
+            prestatire.nombre_avis = stats['total'] or 0
+            prestatire.save()
+        except Exception:
+            pass
 
         return Response(
             ReviewSerializer(review).data,
