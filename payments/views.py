@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db import transaction as db_transaction
-from django.conf import settings
+from decimal import Decimal  # ← AJOUTE CET IMPORT
 from .models import Wallet, Transaction, Payment, Withdrawal
 from .serializers import (
     WalletSerializer,
@@ -16,7 +16,7 @@ from .serializers import (
 from orders.models import Order
 from notifications.utils import notif_paiement_recu, notif_retrait_traite
 
-COMMISSION_TAUX = 0.10
+COMMISSION_TAUX = Decimal('0.10')  
 
 
 def get_or_create_wallet(user):
@@ -27,7 +27,7 @@ def get_or_create_wallet(user):
 def crediter_wallet(user, montant, description):
     wallet = get_or_create_wallet(user)
     solde_avant = wallet.solde
-    wallet.solde += montant
+    wallet.solde += Decimal(str(montant)) 
     wallet.save()
     Transaction.objects.create(
         wallet=wallet,
@@ -42,10 +42,12 @@ def crediter_wallet(user, montant, description):
 
 def debiter_wallet(user, montant, description):
     wallet = get_or_create_wallet(user)
-    if wallet.solde < montant:
+    if wallet.solde < Decimal(str(montant)):  
+        
         return None, 'Solde insuffisant'
     solde_avant = wallet.solde
-    wallet.solde -= montant
+    wallet.solde -= Decimal(str(montant))  
+    
     wallet.save()
     Transaction.objects.create(
         wallet=wallet,
@@ -64,8 +66,23 @@ def debiter_wallet(user, montant, description):
 @permission_classes([IsAuthenticated])
 def mon_wallet(request):
     wallet = get_or_create_wallet(request.user)
-    serializer = WalletSerializer(wallet)
-    return Response(serializer.data)
+    transactions = wallet.transactions.all()[:20]
+    return Response({
+        'solde': str(wallet.solde),
+        'devise': wallet.devise,
+        'transactions': [
+            {
+                'id': t.id,
+                'type': t.type,
+                'montant': str(t.montant),
+                'solde_avant': str(t.solde_avant),
+                'solde_apres': str(t.solde_apres),
+                'description': t.description,
+                'date': t.date.isoformat(),
+            }
+            for t in transactions
+        ],
+    })
 
 
 @api_view(['GET'])
@@ -94,7 +111,6 @@ def initier_paiement(request):
 
     order_id = serializer.validated_data['order_id']
     methode = serializer.validated_data['methode']
-    numero_mobile = serializer.validated_data.get('numero_mobile', '')
 
     try:
         order = Order.objects.get(
@@ -152,54 +168,24 @@ def initier_paiement(request):
                 montant_prestatire,
                 f'Paiement recu commande #{order.id}'
             )
-            notif_paiement_recu(payment)
 
             order.statut = Order.STATUT_EN_COURS
             order.save()
 
+            try:
+                notif_paiement_recu(payment)
+            except Exception:
+                pass
+
             return Response({
                 'message': 'Paiement effectue avec succes via Wallet',
-                'payment': PaymentSerializer(payment).data,
-            }, status=status.HTTP_201_CREATED)
-
-        elif methode == 'MOBILE_MONEY':
-            # kkiapay sandbox
-            fedapay_response = initier_kkiapay(
-                montant=int(montant_total),
-                description=f'Proxim - Commande #{order.id}',
-            )
-
-            payment = Payment.objects.create(
-                order=order,
-                client=request.user.client_profile,
-                montant_total=montant_total,
-                commission_plateforme=commission,
-                montant_prestatire=montant_prestatire,
-                methode=methode,
-                statut='EN_ATTENTE',
-                fedapay_transaction_id=fedapay_response.get('id', ''),
-            )
-
-            return Response({
-                'message': 'Paiement Mobile Money initie',
-                'payment': PaymentSerializer(payment).data,
-                'fedapay': fedapay_response,
+                'payment_id': payment.id,
             }, status=status.HTTP_201_CREATED)
 
     return Response(
         {'error': 'Methode de paiement non supportee'},
         status=status.HTTP_400_BAD_REQUEST
     )
-
-
-def initier_kkiapay(montant, description):
-    # KKiaPay gère le paiement côté Flutter directement
-    # Le backend reçoit juste la confirmation après succès
-    return {
-        'montant': montant,
-        'description': description,
-        'status': 'pending',
-    }
 
 
 @api_view(['POST'])
@@ -229,14 +215,18 @@ def confirmer_paiement_fedapay(request):
             payment.montant_prestatire,
             f'Paiement recu commande #{payment.order.id}'
         )
-        notif_paiement_recu(payment)
 
         payment.order.statut = Order.STATUT_EN_COURS
         payment.order.save()
 
+    try:
+        notif_paiement_recu(payment)
+    except Exception:
+        pass
+
     return Response({
         'message': 'Paiement confirme avec succes',
-        'payment': PaymentSerializer(payment).data,
+        'payment_id': payment.id,
     })
 
 
@@ -304,7 +294,7 @@ def demander_retrait(request):
             numero_mobile=serializer.validated_data['numero_mobile'],
             statut='EN_ATTENTE',
         )
-        # Note: notif_retrait_traite sera appelée par l'admin quand il traite le retrait
+
     return Response({
         'message': 'Demande de retrait soumise avec succes',
         'retrait': WithdrawalSerializer(retrait).data,
@@ -327,7 +317,8 @@ def historique_retraits(request):
         return Response(serializer.data)
     except Exception:
         return Response([], status=status.HTTP_200_OK)
-    
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def confirmer_paiement_kkiapay(request):
@@ -365,8 +356,8 @@ def confirmer_paiement_kkiapay(request):
         )
 
     try:
-        montant_decimal = float(montant)
-    except (ValueError, TypeError):
+        montant_decimal = Decimal(str(montant))  # ← Decimal propre
+    except Exception:
         return Response(
             {'error': 'Montant invalide'},
             status=status.HTTP_400_BAD_REQUEST
@@ -396,11 +387,10 @@ def confirmer_paiement_kkiapay(request):
         order.statut = Order.STATUT_EN_COURS
         order.save()
 
-    # Notif complètement isolée
     try:
         notif_paiement_recu(payment)
-    except Exception as e:
-        print(f'Notif paiement error: {e}')  # log mais ne bloque pas
+    except Exception:
+        pass
 
     return Response({
         'message': 'Paiement confirme !',
