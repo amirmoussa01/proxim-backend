@@ -24,7 +24,7 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate_order(self, value):
-        if value.statut not in ['TERMINE', 'EN_COURS']:  # ← accepte les deux
+        if value.statut not in ['TERMINE', 'EN_COURS']:
             raise serializers.ValidationError(
                 'Vous ne pouvez noter que les commandes en cours ou terminees'
             )

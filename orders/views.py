@@ -53,7 +53,10 @@ def creer_commande(request):
             changed_by=request.user,
             commentaire='Commande creee',
         )
-        notif_commande_recue(order)
+        try:
+            notif_commande_recue(order)
+        except Exception:
+            pass
         return Response(
             OrderSerializer(order).data,
             status=status.HTTP_201_CREATED
@@ -156,7 +159,6 @@ def changer_statut_commande(request, pk):
         nouveau_statut = serializer.validated_data['statut']
         commentaire = serializer.validated_data.get('commentaire', '')
 
-        # Verifications des transitions de statut
         transitions_client = {
             Order.STATUT_NEGOCIATION: [Order.STATUT_ANNULE],
             Order.STATUT_ACCEPTE: [Order.STATUT_ANNULE],
@@ -179,6 +181,18 @@ def changer_statut_commande(request, pk):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # ← VÉRIFICATION PAIEMENT AVANT EN_COURS
+        if nouveau_statut == Order.STATUT_EN_COURS and user.is_prestataire:
+            paiement_ok = (
+                hasattr(order, 'payment') and
+                order.payment.statut == 'SUCCES'
+            )
+            if not paiement_ok:
+                return Response(
+                    {'error': 'Le client doit effectuer le paiement avant de démarrer'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
         order.statut = nouveau_statut
         order.save()
 
@@ -188,14 +202,18 @@ def changer_statut_commande(request, pk):
             changed_by=user,
             commentaire=commentaire,
         )
-        if nouveau_statut == Order.STATUT_ACCEPTE:
-            notif_commande_acceptee(order)
-        elif nouveau_statut == Order.STATUT_TERMINE:
-            notif_commande_terminee(order)
-        elif nouveau_statut == Order.STATUT_ANNULE:
-            notif_commande_annulee(order, annule_par=user)
-        else:
-            notif_nouveau_statut(order, nouveau_statut)
+
+        try:
+            if nouveau_statut == Order.STATUT_ACCEPTE:
+                notif_commande_acceptee(order)
+            elif nouveau_statut == Order.STATUT_TERMINE:
+                notif_commande_terminee(order)
+            elif nouveau_statut == Order.STATUT_ANNULE:
+                notif_commande_annulee(order, annule_par=user)
+            else:
+                notif_nouveau_statut(order, nouveau_statut)
+        except Exception:
+            pass
 
         return Response(OrderSerializer(order).data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -261,7 +279,10 @@ def envoyer_negociation(request, pk):
     serializer = NegotiationCreateSerializer(data=request.data)
     if serializer.is_valid():
         negociation = serializer.save(order=order, expediteur=user)
-        notif_nouvelle_negociation(negociation)
+        try:
+            notif_nouvelle_negociation(negociation)
+        except Exception:
+            pass
         return Response(
             NegotiationSerializer(negociation).data,
             status=status.HTTP_201_CREATED

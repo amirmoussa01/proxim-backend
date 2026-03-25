@@ -27,6 +27,26 @@ class OrderSerializer(serializers.ModelSerializer):
     client_detail = ClientProfileSerializer(source='client', read_only=True)
     prestatire_detail = PrestatireProfileSerializer(source='prestatire', read_only=True)
     service_detail = ServiceSerializer(source='service', read_only=True)
+    review = serializers.SerializerMethodField()
+    payment = serializers.SerializerMethodField()
+
+    def get_review(self, obj):
+        if hasattr(obj, 'review'):
+            return {
+                'id': obj.review.id,
+                'note': obj.review.note,
+                'commentaire': obj.review.commentaire,
+            }
+        return None
+
+    def get_payment(self, obj):
+        if hasattr(obj, 'payment'):
+            return {
+                'id': obj.payment.id,
+                'statut': obj.payment.statut,
+                'montant_total': str(obj.payment.montant_total),
+            }
+        return None
 
     class Meta:
         model = Order
