@@ -17,7 +17,7 @@ from orders.models import Order
 from notifications.utils import notif_paiement_recu, notif_retrait_traite
 
 
-COMMISSION_TAUX = Decimal('0.10')  
+COMMISSION_TAUX = Decimal('0.05')  
 
 
 def get_or_create_wallet(user):
