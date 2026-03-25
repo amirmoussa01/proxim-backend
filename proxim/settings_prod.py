@@ -1,7 +1,7 @@
 from .settings import *
 import os
 
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 

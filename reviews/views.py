@@ -32,16 +32,16 @@ def creer_avis(request):
             prestatire=order.prestatire,
         )
 
-        # Mettre a jour note moyenne prestatire
         prestatire = order.prestatire
         stats = Review.objects.filter(prestatire=prestatire).aggregate(
             moyenne=Avg('note'), total=Count('id')
         )
+        prestatire.note_moyenne = stats['moyenne'] or 0
+        prestatire.nombre_avis = stats['total'] or 0
+        prestatire.save()
+
         try:
             notif_nouvel_avis(review)
-            prestatire.note_moyenne = stats['moyenne'] or 0
-            prestatire.nombre_avis = stats['total'] or 0
-            prestatire.save()
         except Exception:
             pass
 
@@ -49,7 +49,12 @@ def creer_avis(request):
             ReviewSerializer(review).data,
             status=status.HTTP_201_CREATED
         )
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # ← Retourne l'erreur détaillée au lieu de juste 400
+    return Response(
+        {'errors': serializer.errors, 'data_recu': request.data},
+        status=status.HTTP_400_BAD_REQUEST
+    )
 
 
 @api_view(['GET'])

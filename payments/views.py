@@ -404,5 +404,6 @@ def confirmer_paiement_kkiapay(request):
 
     return Response({
         'message': 'Paiement confirme !',
-        'payment': PaymentSerializer(payment).data,
+        'payment_id': payment.id,
+        'statut': payment.statut,
     }, status=status.HTTP_201_CREATED)
