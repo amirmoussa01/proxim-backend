@@ -1,11 +1,14 @@
 from .models import Notification
+import os
+import json
 import firebase_admin
 from firebase_admin import credentials, messaging as fcm_messaging
 
-# Initialiser Firebase Admin une seule fois
 if not firebase_admin._apps:
-    cred = credentials.Certificate('proxim-firebase-adminsdk.json')  # ← chemin vers ton fichier
-    firebase_admin.initialize_app(cred)
+    creds_json = os.environ.get('FIREBASE_CREDENTIALS_JSON')
+    if creds_json:
+        cred = credentials.Certificate(json.loads(creds_json))
+        firebase_admin.initialize_app(cred)
 
 def envoyer_push(user, titre, corps, data=None):
     token = getattr(user, 'fcm_token', None)
