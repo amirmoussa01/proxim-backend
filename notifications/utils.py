@@ -1,30 +1,28 @@
 from .models import Notification
-import requests
+import firebase_admin
+from firebase_admin import credentials, messaging as fcm_messaging
 
-def envoyer_push(token_fcm, titre, corps, data=None):
-    """Envoyer une notification push via FCM HTTP v1"""
-    if not token_fcm:
+# Initialiser Firebase Admin une seule fois
+if not firebase_admin._apps:
+    cred = credentials.Certificate('proxim-firebase-adminsdk.json')  # ← chemin vers ton fichier
+    firebase_admin.initialize_app(cred)
+
+def envoyer_push(user, titre, corps, data=None):
+    token = getattr(user, 'fcm_token', None)
+    if not token:
         return
     try:
-        # Pour l'instant on utilise FCM Legacy (simple)
-        requests.post(
-            'https://fcm.googleapis.com/fcm/send',
-            json={
-                'to': token_fcm,
-                'notification': {
-                    'title': titre,
-                    'body': corps,
-                },
-                'data': data or {},
-            },
-            headers={
-                'Authorization': 'key=TA_CLE_SERVEUR_FCM',  # ← depuis Firebase Console
-                'Content-Type': 'application/json',
-            },
-            timeout=5,
+        message = fcm_messaging.Message(
+            notification=fcm_messaging.Notification(
+                title=titre,
+                body=corps,
+            ),
+            data={k: str(v) for k, v in (data or {}).items()},
+            token=token,
         )
-    except Exception:
-        pass
+        fcm_messaging.send(message)
+    except Exception as e:
+        print(f'FCM error: {e}')
 
 
 def notifier(destinataire, type_notif, titre, contenu, objet_id=None, objet_type=None):
@@ -36,6 +34,7 @@ def notifier(destinataire, type_notif, titre, contenu, objet_id=None, objet_type
         lien_objet_id=objet_id,
         lien_objet_type=objet_type,
     )
+    envoyer_push(destinataire, titre, contenu)
 
 
 # ─── COMMANDES ────────────────────────────────────────────────
@@ -49,6 +48,7 @@ def notif_commande_recue(order):
         objet_id=order.id,
         objet_type='order',
     )
+
 
 
 def notif_commande_acceptee(order):
