@@ -1,4 +1,30 @@
 from .models import Notification
+import requests
+
+def envoyer_push(token_fcm, titre, corps, data=None):
+    """Envoyer une notification push via FCM HTTP v1"""
+    if not token_fcm:
+        return
+    try:
+        # Pour l'instant on utilise FCM Legacy (simple)
+        requests.post(
+            'https://fcm.googleapis.com/fcm/send',
+            json={
+                'to': token_fcm,
+                'notification': {
+                    'title': titre,
+                    'body': corps,
+                },
+                'data': data or {},
+            },
+            headers={
+                'Authorization': 'key=TA_CLE_SERVEUR_FCM',  # ← depuis Firebase Console
+                'Content-Type': 'application/json',
+            },
+            timeout=5,
+        )
+    except Exception:
+        pass
 
 
 def notifier(destinataire, type_notif, titre, contenu, objet_id=None, objet_type=None):

@@ -443,3 +443,12 @@ def dashboard_prestataire(request):
         'devise': devise,
         'commandes_recentes': recentes_data,
     })
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def sauvegarder_fcm_token(request):
+    token = request.data.get('token')
+    if token:
+        request.user.fcm_token = token
+        request.user.save()
+    return Response({'message': 'Token sauvegardé'})

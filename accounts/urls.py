@@ -20,6 +20,7 @@ urlpatterns = [
     path('supprimer-compte/', views.supprimer_compte, name='supprimer-compte'),
     path('kyc/soumettre/', views.soumettre_kyc, name='soumettre-kyc'),
     path('kyc/mes-documents/', views.mes_kyc, name='mes-kyc'),
+    path('fcm-token/', views.sauvegarder_fcm_token, name='fcm-token'),
 
     # Profil
     path('profil/', views.mon_profil, name='mon-profil'),

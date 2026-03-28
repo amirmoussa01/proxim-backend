@@ -41,7 +41,8 @@ class User(AbstractUser):
     is_email_verified = models.BooleanField(default=False)
     google_id = models.CharField(max_length=255, blank=True, null=True, unique=True)
     email_verification_code = models.CharField(max_length=6, blank=True, null=True)
-
+    fcm_token = models.CharField(max_length=500, blank=True, null=True)
+    
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
 
