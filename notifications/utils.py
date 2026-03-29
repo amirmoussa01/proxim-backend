@@ -12,7 +12,9 @@ if not firebase_admin._apps:
 
 def envoyer_push(user, titre, corps, data=None):
     token = getattr(user, 'fcm_token', None)
+    print(f'[FCM] user={user.email} token={token} firebase_apps={len(firebase_admin._apps)}')
     if not token:
+        print('[FCM] Pas de token FCM pour cet user')
         return
     try:
         message = fcm_messaging.Message(
@@ -23,9 +25,10 @@ def envoyer_push(user, titre, corps, data=None):
             data={k: str(v) for k, v in (data or {}).items()},
             token=token,
         )
-        fcm_messaging.send(message)
+        result = fcm_messaging.send(message)
+        print(f'[FCM] Envoyé avec succès: {result}')
     except Exception as e:
-        print(f'FCM error: {e}')
+        print(f'[FCM] Erreur: {e}')
 
 
 def notifier(destinataire, type_notif, titre, contenu, objet_id=None, objet_type=None):
