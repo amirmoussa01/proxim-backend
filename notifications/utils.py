@@ -12,21 +12,29 @@ if not firebase_admin._apps:
 
 def envoyer_push(user, titre, corps, data=None):
     token = getattr(user, 'fcm_token', None)
-    print(f'[FCM] user={user.email} token={token} firebase_apps={len(firebase_admin._apps)}')
     if not token:
-        print('[FCM] Pas de token FCM pour cet user')
         return
+
+    # On s'assure que data n'est jamais None pour éviter des erreurs
+    payload_data = {k: str(v) for k, v in (data or {}).items()}
+
     try:
         message = fcm_messaging.Message(
             notification=fcm_messaging.Notification(
                 title=titre,
                 body=corps,
             ),
-            data={k: str(v) for k, v in (data or {}).items()},
+            # Ajout du channel_id pour Android (doit correspondre à ton main.dart)
+            android=fcm_messaging.AndroidConfig(
+                notification=fcm_messaging.AndroidNotification(
+                    click_action='FLUTTER_NOTIFICATION_CLICK',
+                    channel_id='proxim_channel', # CRUCIAL
+                ),
+            ),
+            data=payload_data,
             token=token,
         )
-        result = fcm_messaging.send(message)
-        print(f'[FCM] Envoyé avec succès: {result}')
+        fcm_messaging.send(message)
     except Exception as e:
         print(f'[FCM] Erreur: {e}')
 
