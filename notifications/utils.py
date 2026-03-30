@@ -4,18 +4,32 @@ import json
 import firebase_admin
 from firebase_admin import credentials, messaging as fcm_messaging
 
-if not firebase_admin._apps:
-    creds_json = os.environ.get('FIREBASE_CREDENTIALS_JSON')
-    if creds_json:
-        cred = credentials.Certificate(json.loads(creds_json))
-        firebase_admin.initialize_app(cred)
+# Sécurité pour l'initialisation sur Clever Cloud
+def get_firebase_app():
+    if not firebase_admin._apps:
+        creds_json = os.environ.get('FIREBASE_CREDENTIALS_JSON')
+        if creds_json:
+            try:
+                # Nettoyage des espaces et chargement du JSON
+                decoded_creds = json.loads(creds_json.strip())
+                cred = credentials.Certificate(decoded_creds)
+                return firebase_admin.initialize_app(cred)
+            except Exception as e:
+                print(f"[FCM SETUP ERROR] Erreur initialisation: {e}")
+    return firebase_admin.get_app()
 
 def envoyer_push(user, titre, corps, data=None):
+    get_firebase_app() # Vérifie l'initialisation
+    
     token = getattr(user, 'fcm_token', None)
+    # Log pour voir si le token arrive bien jusqu'ici
+    print(f"[FCM DEBUG] Tentative pour {user.email} | Token présent: {bool(token)}")
+
     if not token:
+        print(f"[FCM SKIP] Aucun token pour {user.email}")
         return
 
-    # On s'assure que data n'est jamais None pour éviter des erreurs
+    # Préparation des data pour Firebase (clés et valeurs en String obligatoire)
     payload_data = {k: str(v) for k, v in (data or {}).items()}
 
     try:
@@ -24,19 +38,41 @@ def envoyer_push(user, titre, corps, data=None):
                 title=titre,
                 body=corps,
             ),
-            # Ajout du channel_id pour Android (doit correspondre à ton main.dart)
             android=fcm_messaging.AndroidConfig(
                 notification=fcm_messaging.AndroidNotification(
                     click_action='FLUTTER_NOTIFICATION_CLICK',
-                    channel_id='proxim_channel', # CRUCIAL
+                    channel_id='proxim_channel',
                 ),
             ),
             data=payload_data,
             token=token,
         )
-        fcm_messaging.send(message)
+        response = fcm_messaging.send(message)
+        print(f'[FCM SUCCESS] Message envoyé avec succès ! ID: {response}')
     except Exception as e:
-        print(f'[FCM] Erreur: {e}')
+        print(f'[FCM ERROR] Erreur lors de l\'envoi Firebase: {str(e)}')
+
+def notifier(destinataire, type_notif, titre, contenu, objet_id=None, objet_type=None):
+    # 1. Sauvegarde dans ta base de données locale
+    Notification.objects.create(
+        destinataire=destinataire,
+        type=type_notif,
+        titre=titre,
+        contenu=contenu,
+        lien_objet_id=objet_id,
+        lien_objet_type=objet_type,
+    )
+    
+    # 2. Préparation du dictionnaire de données pour le téléphone
+    data_payload = {
+        'type': type_notif,
+        'objet_id': str(objet_id) if objet_id else "",
+        'objet_type': str(objet_type) if objet_type else ""
+    }
+    
+    # 3. Appel de l'envoi Push avec le payload
+    envoyer_push(destinataire, titre, contenu, data=data_payload)
+
 
 
 def notifier(destinataire, type_notif, titre, contenu, objet_id=None, objet_type=None):
@@ -48,7 +84,16 @@ def notifier(destinataire, type_notif, titre, contenu, objet_id=None, objet_type
         lien_objet_id=objet_id,
         lien_objet_type=objet_type,
     )
-    envoyer_push(destinataire, titre, contenu)
+      # Prépare les données pour le push
+    data_payload = {
+        'type': type_notif,
+        'objet_id': objet_id,
+        'objet_type': objet_type
+    }
+    envoyer_push(destinataire, titre, contenu, data=data_payload)
+    
+    
+
 
 
 # ─── COMMANDES ────────────────────────────────────────────────
