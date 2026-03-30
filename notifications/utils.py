@@ -19,14 +19,14 @@ def get_firebase_app():
     return firebase_admin.get_app()
 
 def envoyer_push(user, titre, corps, data=None):
-    get_firebase_app() # Vérifie l'initialisation
-    
+    get_firebase_app()
     token = getattr(user, 'fcm_token', None)
-    # Log pour voir si le token arrive bien jusqu'ici
-    print(f"[FCM DEBUG] Tentative pour {user.email} | Token présent: {bool(token)}")
-
+    
+    # CE PRINT DOIT APPARAÎTRE DANS TES LOGS CLEVER CLOUD
+    print(f"DEBUG_PUSH_START: Tentative pour {user.email}")
+    
     if not token:
-        print(f"[FCM SKIP] Aucun token pour {user.email}")
+        print(f"DEBUG_PUSH_FAIL: Pas de token pour {user.email}")
         return
 
     # Préparation des data pour Firebase (clés et valeurs en String obligatoire)
