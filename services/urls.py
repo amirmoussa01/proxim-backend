@@ -20,10 +20,13 @@ urlpatterns = [
 
     # Parametres
     path('<int:pk>/parametres/ajouter/', views.ajouter_parametre, name='ajouter-parametre'),
+    path('parametres/<int:pk>/modifier/', views.modifier_parametre, name='modifier-parametre'),  # ← nouveau
     path('parametres/<int:pk>/supprimer/', views.supprimer_parametre, name='supprimer-parametre'),
     path('parametres/<int:pk>/options/ajouter/', views.ajouter_option_parametre, name='ajouter-option'),
 
     # Disponibilites
+    path('<int:pk>/disponibilites/', views.disponibilites_service, name='disponibilites-service'),  # ← nouveau
     path('<int:pk>/disponibilites/ajouter/', views.ajouter_disponibilite, name='ajouter-dispo'),
+    path('disponibilites/<int:pk>/modifier/', views.modifier_disponibilite, name='modifier-dispo'),  # ← nouveau
     path('disponibilites/<int:pk>/supprimer/', views.supprimer_disponibilite, name='supprimer-dispo'),
 ]
