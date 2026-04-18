@@ -1,4 +1,5 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from django.conf import settings
 from services.models import Service, Category
 from accounts.models import User
@@ -9,42 +10,46 @@ def get_context_from_db(message: str) -> str:
     context = ""
     message_lower = message.lower()
 
-    # Chercher des services correspondants
-    services = Service.objects.filter(
+    services_filtres = Service.objects.filter(
         is_available=True
-    ).select_related('prestatire', 'categorie')
-
-    # Filtrer si mot-clé détecté
-    mots_cles = message_lower.split()
-    services_filtres = services.filter(
+    ).filter(
         titre__icontains=message_lower
-    ) | services.filter(
+    ) | Service.objects.filter(
+        is_available=True,
         description__icontains=message_lower
-    ) | services.filter(
+    ) | Service.objects.filter(
+        is_available=True,
         categorie__nom__icontains=message_lower
     )
+
+    services_filtres = services_filtres.select_related(
+        'prestatire', 'prestatire__user', 'categorie'
+    ).distinct()
 
     if services_filtres.exists():
         context += "\n=== SERVICES DISPONIBLES SUR PROXIM ===\n"
         for s in services_filtres[:5]:
             prix = f"{s.prix_base} {s.devise}" if s.prix_base else "Sur devis"
-            localisation = s.localisation or (
-                f"{s.prestatire.localisation}" if hasattr(s.prestatire, 'localisation') else "Non précisé"
-            )
+            localisation = s.localisation or "Non précisé"
+            nom_presta = ""
+            try:
+                nom_presta = s.prestatire.user.get_full_name()
+            except Exception:
+                nom_presta = "Prestataire"
             context += (
-                f"- {s.titre} | Prestataire: {s.prestatire.user.get_full_name()} "
+                f"- {s.titre} | Prestataire: {nom_presta} "
                 f"| Prix: {prix} | Localisation: {localisation} "
                 f"| Catégorie: {s.categorie.nom}\n"
             )
     else:
-        # Donner un aperçu général des catégories disponibles
         categories = Category.objects.filter(is_active=True)
         if categories.exists():
             noms = ", ".join([c.nom for c in categories])
             context += f"\n=== CATÉGORIES DISPONIBLES ===\n{noms}\n"
 
-        # Nombre de prestataires actifs
-        nb_presta = User.objects.filter(is_prestataire=True, is_active=True).count()
+        nb_presta = User.objects.filter(
+            is_prestataire=True, is_active=True
+        ).count()
         context += f"\nNombre de prestataires actifs sur Proxim : {nb_presta}\n"
 
     return context
@@ -78,38 +83,54 @@ Règles importantes :
 
 def chat_with_gemini(message: str, historique: list) -> str:
     """
-    Envoie le message à Gemini avec le contexte DB et l'historique.
-    historique : liste de dicts {role: 'user'|'model', parts: [text]}
+    Envoie le message à Gemini avec contexte DB et historique de session.
+    historique : liste de dicts {role: 'user'|'model', content: '...'}
     """
     try:
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        model = genai.GenerativeModel(
-            model_name='gemini-1.5-flash',
-            system_instruction=get_system_prompt(),
-        )
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
         # Enrichir avec contexte DB
         contexte_db = get_context_from_db(message)
-
-        # Construire l'historique Gemini
-        history = []
-        for item in historique:
-            history.append({
-                'role': item['role'],
-                'parts': [item['content']]
-            })
-
-        chat = model.start_chat(history=history)
-
-        # Message enrichi avec contexte si pertinent
         message_enrichi = message
         if contexte_db:
             message_enrichi = (
                 f"{message}\n\n[Contexte base de données Proxim]{contexte_db}"
             )
 
-        response = chat.send_message(message_enrichi)
+        # Construire l'historique au format Gemini
+        history = []
+        for item in historique[-10:]:
+            role = item.get('role', 'user')
+            content = item.get('content', '')
+            history.append(
+                types.Content(
+                    role=role,
+                    parts=[types.Part(text=content)]
+                )
+            )
+
+        # Ajouter le message actuel
+        history.append(
+            types.Content(
+                role='user',
+                parts=[types.Part(text=message_enrichi)]
+            )
+        )
+
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=history,
+            config=types.GenerateContentConfig(
+                system_instruction=get_system_prompt(),
+                max_output_tokens=500,
+                temperature=0.7,
+            ),
+        )
+
         return response.text
 
     except Exception as e:
-        return "Désolé, je rencontre un problème technique. Réessayez dans quelques instants."
+        return (
+            "Désolé, je rencontre un problème technique. "
+            "Réessayez dans quelques instants."
+        )
