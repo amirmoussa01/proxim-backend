@@ -130,7 +130,7 @@ def chat_with_gemini(message: str, historique: list) -> str:
         return response.text
 
     except Exception as e:
-        return (
-            "Désolé, je rencontre un problème technique. "
-            "Réessayez dans quelques instants."
-        )
+        import traceback
+        print("ERREUR GEMINI:", str(e))
+        print(traceback.format_exc())
+        return f"ERREUR TECHNIQUE : {str(e)}"
