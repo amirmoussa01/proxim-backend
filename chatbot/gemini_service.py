@@ -2,7 +2,9 @@ from google import genai
 from google.genai import types
 from django.conf import settings
 from services.models import Service, Category
-from accounts.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
 def get_context_from_db(message: str) -> str:
@@ -10,30 +12,20 @@ def get_context_from_db(message: str) -> str:
     context = ""
     message_lower = message.lower()
 
-    services_filtres = Service.objects.filter(
-        is_available=True
-    ).filter(
-        titre__icontains=message_lower
-    ) | Service.objects.filter(
-        is_available=True,
-        description__icontains=message_lower
-    ) | Service.objects.filter(
-        is_available=True,
-        categorie__nom__icontains=message_lower
-    )
-
-    services_filtres = services_filtres.select_related(
-        'prestatire', 'prestatire__user', 'categorie'
-    ).distinct()
+    services_filtres = (
+        Service.objects.filter(is_available=True, titre__icontains=message_lower) |
+        Service.objects.filter(is_available=True, description__icontains=message_lower) |
+        Service.objects.filter(is_available=True, categorie__nom__icontains=message_lower)
+    ).select_related('prestatire', 'prestatire__user', 'categorie').distinct()
 
     if services_filtres.exists():
         context += "\n=== SERVICES DISPONIBLES SUR PROXIM ===\n"
         for s in services_filtres[:5]:
             prix = f"{s.prix_base} {s.devise}" if s.prix_base else "Sur devis"
             localisation = s.localisation or "Non précisé"
-            nom_presta = ""
             try:
-                nom_presta = s.prestatire.user.get_full_name()
+                u = s.prestatire.user
+                nom_presta = f"{u.first_name} {u.last_name}".strip() or u.email
             except Exception:
                 nom_presta = "Prestataire"
             context += (
@@ -47,8 +39,9 @@ def get_context_from_db(message: str) -> str:
             noms = ", ".join([c.nom for c in categories])
             context += f"\n=== CATÉGORIES DISPONIBLES ===\n{noms}\n"
 
+        # ✅ Utiliser role='prestataire' au lieu de is_prestataire=True
         nb_presta = User.objects.filter(
-            is_prestataire=True, is_active=True
+            role=User.ROLE_PRESTATAIRE, is_active=True
         ).count()
         context += f"\nNombre de prestataires actifs sur Proxim : {nb_presta}\n"
 
@@ -82,14 +75,9 @@ Règles importantes :
 
 
 def chat_with_gemini(message: str, historique: list) -> str:
-    """
-    Envoie le message à Gemini avec contexte DB et historique de session.
-    historique : liste de dicts {role: 'user'|'model', content: '...'}
-    """
     try:
         client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
-        # Enrichir avec contexte DB
         contexte_db = get_context_from_db(message)
         message_enrichi = message
         if contexte_db:
@@ -97,7 +85,6 @@ def chat_with_gemini(message: str, historique: list) -> str:
                 f"{message}\n\n[Contexte base de données Proxim]{contexte_db}"
             )
 
-        # Construire l'historique au format Gemini
         history = []
         for item in historique[-10:]:
             role = item.get('role', 'user')
@@ -109,7 +96,6 @@ def chat_with_gemini(message: str, historique: list) -> str:
                 )
             )
 
-        # Ajouter le message actuel
         history.append(
             types.Content(
                 role='user',
@@ -133,4 +119,7 @@ def chat_with_gemini(message: str, historique: list) -> str:
         import traceback
         print("ERREUR GEMINI:", str(e))
         print(traceback.format_exc())
-        return f"ERREUR TECHNIQUE : {str(e)}"
+        return (
+            "Désolé, je rencontre un problème technique. "
+            "Réessayez dans quelques instants."
+        )
