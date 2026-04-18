@@ -104,7 +104,7 @@ def chat_with_gemini(message: str, historique: list) -> str:
         )
 
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='gemini-2.0-flash',
             contents=history,
             config=types.GenerateContentConfig(
                 system_instruction=get_system_prompt(),
