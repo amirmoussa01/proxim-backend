@@ -14,6 +14,7 @@ urlpatterns = [
     path('api/notifications/', include('notifications.urls')),
     path('api/reviews/', include('reviews.urls')),
     path('api/reports/', include('reports.urls')),
+    path('api/chatbot/', include('chatbot.urls')),
 ]
 
 if settings.DEBUG:

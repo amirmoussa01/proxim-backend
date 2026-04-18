@@ -4,6 +4,7 @@ import os
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 
 DATABASES = {
     'default': {
