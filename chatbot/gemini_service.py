@@ -1,5 +1,4 @@
-from google import genai
-from google.genai import types
+from groq import Groq
 from django.conf import settings
 from services.models import Service, Category
 from django.contrib.auth import get_user_model
@@ -8,7 +7,6 @@ User = get_user_model()
 
 
 def get_context_from_db(message: str) -> str:
-    """Interroge la DB selon le message pour enrichir le contexte."""
     context = ""
     message_lower = message.lower()
 
@@ -39,7 +37,6 @@ def get_context_from_db(message: str) -> str:
             noms = ", ".join([c.nom for c in categories])
             context += f"\n=== CATÉGORIES DISPONIBLES ===\n{noms}\n"
 
-        # ✅ Utiliser role='prestataire' au lieu de is_prestataire=True
         nb_presta = User.objects.filter(
             role=User.ROLE_PRESTATAIRE, is_active=True
         ).count()
@@ -76,7 +73,7 @@ Règles importantes :
 
 def chat_with_gemini(message: str, historique: list) -> str:
     try:
-        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        client = Groq(api_key=settings.GEMINI_API_KEY)
 
         contexte_db = get_context_from_db(message)
         message_enrichi = message
@@ -85,39 +82,40 @@ def chat_with_gemini(message: str, historique: list) -> str:
                 f"{message}\n\n[Contexte base de données Proxim]{contexte_db}"
             )
 
-        history = []
+        # Construire les messages au format OpenAI/Groq
+        messages = [
+            {"role": "system", "content": get_system_prompt()}
+        ]
+
+        # Ajouter l'historique
         for item in historique[-10:]:
             role = item.get('role', 'user')
-            content = item.get('content', '')
-            history.append(
-                types.Content(
-                    role=role,
-                    parts=[types.Part(text=content)]
-                )
-            )
+            # Groq utilise 'assistant' au lieu de 'model'
+            if role == 'model':
+                role = 'assistant'
+            messages.append({
+                "role": role,
+                "content": item.get('content', '')
+            })
 
-        history.append(
-            types.Content(
-                role='user',
-                parts=[types.Part(text=message_enrichi)]
-            )
+        # Ajouter le message actuel enrichi
+        messages.append({
+            "role": "user",
+            "content": message_enrichi
+        })
+
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=messages,
+            max_tokens=500,
+            temperature=0.7,
         )
 
-        response = client.models.generate_content(
-            model='gemini-2.0-flash-lite',
-            contents=history,
-            config=types.GenerateContentConfig(
-                system_instruction=get_system_prompt(),
-                max_output_tokens=500,
-                temperature=0.7,
-            ),
-        )
-
-        return response.text
+        return response.choices[0].message.content
 
     except Exception as e:
         import traceback
-        print("ERREUR GEMINI:", str(e))
+        print("ERREUR CHATBOT:", str(e))
         print(traceback.format_exc())
         return (
             "Désolé, je rencontre un problème technique. "
