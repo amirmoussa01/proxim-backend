@@ -1,0 +1,128 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Catégories — Proxim Admin{% endblock %}
+{% block topbar_title %}Gestion des <span>Catégories</span>{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+  <div class="page-title">Catégories <span>({{ total }})</span></div>
+  <button class="btn btn-gold px-4" data-bs-toggle="modal" data-bs-target="#modalCreer">
+    <i class="fas fa-plus me-2"></i>Nouvelle catégorie
+  </button>
+</div>
+<div class="page-subtitle">Gérez les catégories de services</div>
+
+<div class="row g-3">
+  {% for cat in categories %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card-panel" id="cat-{{ cat.id }}">
+      <div style="padding:20px;">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+          <div style="width:48px;height:48px;background:rgba(244,169,34,0.12);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;">
+            {% if cat.icone %}{{ cat.icone }}{% else %}🏷️{% endif %}
+          </div>
+          <div style="flex:1;">
+            <div style="color:white;font-size:15px;font-weight:700;">{{ cat.nom }}</div>
+            <div style="color:var(--text-muted);font-size:12px;">{{ cat.nb_services }} service{{ cat.nb_services|pluralize }}</div>
+          </div>
+          {% if cat.is_active %}
+            <span class="badge-status bs-success">Active</span>
+          {% else %}
+            <span class="badge-status bs-error">Inactive</span>
+          {% endif %}
+        </div>
+        {% if cat.description %}
+        <div style="color:var(--text-muted);font-size:12px;margin-bottom:14px;line-height:1.5;">{{ cat.description|truncatechars:80 }}</div>
+        {% endif %}
+        <div style="display:flex;gap:8px;padding-top:14px;border-top:1px solid var(--border);">
+          <button class="btn btn-sm btn-outline-proxim flex-grow-1" onclick="toggleCategorie({{ cat.id }}, {{ cat.is_active|yesno:'true,false' }}, this)">
+            {% if cat.is_active %}<i class="fas fa-pause me-1"></i>Désactiver{% else %}<i class="fas fa-play me-1"></i>Activer{% endif %}
+          </button>
+          {% if cat.nb_services == 0 %}
+          <button class="btn-icon btn-icon-error" title="Supprimer" onclick="supprimerCategorie({{ cat.id }}, '{{ cat.nom|escapejs }}', this)">
+            <i class="fas fa-trash"></i>
+          </button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="col-12">
+    <div style="text-align:center;padding:60px;color:var(--text-muted);">
+      <i class="fas fa-tags" style="font-size:48px;display:block;margin-bottom:16px;"></i>
+      Aucune catégorie
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Modal créer catégorie -->
+<div class="modal fade proxim-modal" id="modalCreer" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-plus me-2" style="color:var(--gold);"></i>Nouvelle catégorie</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:24px;">
+        <div class="mb-3">
+          <label style="color:var(--text-muted);font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Nom *</label>
+          <input type="text" id="cat-nom" class="filter-input w-100" placeholder="Ex: Plomberie"/>
+        </div>
+        <div class="mb-3">
+          <label style="color:var(--text-muted);font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Description</label>
+          <textarea id="cat-desc" class="filter-input w-100" rows="3" placeholder="Description de la catégorie..."></textarea>
+        </div>
+        <div>
+          <label style="color:var(--text-muted);font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Icône (emoji)</label>
+          <input type="text" id="cat-icone" class="filter-input w-100" placeholder="Ex: 🔧"/>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-proxim" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-gold px-4" onclick="creerCategorie()">
+          <i class="fas fa-plus me-2"></i>Créer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function creerCategorie() {
+  const nom = document.getElementById('cat-nom').value.trim();
+  if (!nom) { showToast('Le nom est obligatoire', 'warning'); return; }
+  const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+  fetch('/admin-dashboard/categories/creer/', {
+    method: 'POST',
+    headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({
+      nom: nom,
+      description: document.getElementById('cat-desc').value,
+      icone: document.getElementById('cat-icone').value,
+    })
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) {
+      showToast(d.message, 'success');
+      bootstrap.Modal.getInstance(document.getElementById('modalCreer')).hide();
+      setTimeout(() => location.reload(), 1000);
+    } else showToast(d.error || 'Erreur', 'error');
+  });
+}
+function toggleCategorie(id, isActive, btn) {
+  proxim_post(`/admin-dashboard/categories/${id}/toggle/`, {},
+    (d) => { setTimeout(() => location.reload(), 800); }
+  );
+}
+function supprimerCategorie(id, nom, btn) {
+  if (!confirm(`Supprimer la catégorie "${nom}" ?`)) return;
+  proxim_post(`/admin-dashboard/categories/${id}/supprimer/`, {},
+    () => { document.getElementById(`cat-${id}`).closest('.col-md-6').remove(); }
+  );
+}
+</script>
+{% endblock %}

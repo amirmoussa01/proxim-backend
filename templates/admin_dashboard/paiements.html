@@ -1,0 +1,80 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Paiements — Proxim Admin{% endblock %}
+{% block topbar_title %}Gestion des <span>Paiements</span>{% endblock %}
+
+{% block content %}
+<div class="page-title">Paiements</div>
+<div class="page-subtitle">Suivi de tous les paiements de la plateforme</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="stat-card">
+      <div class="icon" style="background:rgba(16,185,129,0.15);">
+        <i class="fas fa-coins" style="color:#10B981;"></i>
+      </div>
+      <div class="value" style="font-size:24px;">{{ total_succes|floatformat:0 }} <small style="font-size:13px;color:var(--text-muted);">FCFA</small></div>
+      <div class="label">Volume total des paiements</div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="stat-card">
+      <div class="icon" style="background:rgba(244,169,34,0.15);">
+        <i class="fas fa-percentage" style="color:var(--gold);"></i>
+      </div>
+      <div class="value" style="font-size:24px;">{{ commission_totale|floatformat:0 }} <small style="font-size:13px;color:var(--text-muted);">FCFA</small></div>
+      <div class="label">Commissions perçues</div>
+    </div>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <form method="get" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;">
+    <select name="statut" class="filter-input">
+      <option value="">Tous statuts</option>
+      <option value="EN_ATTENTE" {% if statut == 'EN_ATTENTE' %}selected{% endif %}>En attente</option>
+      <option value="SUCCES" {% if statut == 'SUCCES' %}selected{% endif %}>Succès</option>
+      <option value="ECHOUE" {% if statut == 'ECHOUE' %}selected{% endif %}>Échoué</option>
+      <option value="REMBOURSE" {% if statut == 'REMBOURSE' %}selected{% endif %}>Remboursé</option>
+    </select>
+    <select name="methode" class="filter-input">
+      <option value="">Toutes méthodes</option>
+      <option value="MOBILE_MONEY" {% if methode == 'MOBILE_MONEY' %}selected{% endif %}>Mobile Money</option>
+      <option value="CARTE" {% if methode == 'CARTE' %}selected{% endif %}>Carte</option>
+      <option value="WALLET" {% if methode == 'WALLET' %}selected{% endif %}>Wallet</option>
+    </select>
+    <button type="submit" class="btn btn-gold px-3"><i class="fas fa-filter me-1"></i>Filtrer</button>
+    <a href="{% url 'admin_dashboard:paiements' %}" class="btn btn-outline-proxim px-3"><i class="fas fa-times"></i></a>
+  </form>
+</div>
+
+<div class="card-panel">
+  <div style="overflow-x:auto;">
+    <table class="proxim-table">
+      <thead>
+        <tr><th>#</th><th>Client</th><th>Commande</th><th>Montant</th><th>Commission</th><th>Méthode</th><th>Statut</th><th>Date</th></tr>
+      </thead>
+      <tbody>
+        {% for p in paiements %}
+        <tr>
+          <td style="color:var(--gold);font-weight:700;">#{{ p.id }}</td>
+          <td>{{ p.client.prenom }} {{ p.client.nom }}</td>
+          <td style="color:var(--text-muted);">#{{ p.order.id }}</td>
+          <td style="color:white;font-weight:600;">{{ p.montant_total|floatformat:0 }} F</td>
+          <td style="color:var(--gold);">{{ p.commission_plateforme|floatformat:0 }} F</td>
+          <td><span class="badge-status bs-info">{{ p.methode }}</span></td>
+          <td>
+            {% if p.statut == 'SUCCES' %}<span class="badge-status bs-success">Succès</span>
+            {% elif p.statut == 'ECHOUE' %}<span class="badge-status bs-error">Échoué</span>
+            {% elif p.statut == 'REMBOURSE' %}<span class="badge-status bs-warning">Remboursé</span>
+            {% else %}<span class="badge-status bs-info">En attente</span>{% endif %}
+          </td>
+          <td style="color:var(--text-muted);">{{ p.date_paiement|date:"d/m/Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">Aucun paiement</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

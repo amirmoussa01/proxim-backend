@@ -1,0 +1,99 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Retraits — Proxim Admin{% endblock %}
+{% block topbar_title %}Gestion des <span>Retraits</span>{% endblock %}
+
+{% block content %}
+<div class="page-title">Retraits</div>
+<div class="page-subtitle">Demandes de retrait des prestataires</div>
+
+{% if total_en_attente %}
+<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;align-items:center;gap:14px;">
+  <i class="fas fa-exclamation-triangle" style="color:#F59E0B;font-size:20px;"></i>
+  <div>
+    <div style="color:white;font-weight:700;">{{ total_en_attente|floatformat:0 }} FCFA en attente de traitement</div>
+    <div style="color:var(--text-muted);font-size:12px;">Traitez les demandes ci-dessous</div>
+  </div>
+</div>
+{% endif %}
+
+<div class="filter-bar">
+  <form method="get" style="display:flex;align-items:center;gap:10px;">
+    <select name="statut" class="filter-input">
+      <option value="">Tous statuts</option>
+      <option value="EN_ATTENTE" {% if statut == 'EN_ATTENTE' %}selected{% endif %}>En attente</option>
+      <option value="TRAITE" {% if statut == 'TRAITE' %}selected{% endif %}>Traités</option>
+      <option value="REJETE" {% if statut == 'REJETE' %}selected{% endif %}>Rejetés</option>
+    </select>
+    <button type="submit" class="btn btn-gold px-3"><i class="fas fa-filter me-1"></i>Filtrer</button>
+    <a href="{% url 'admin_dashboard:retraits' %}" class="btn btn-outline-proxim px-3"><i class="fas fa-times"></i></a>
+  </form>
+</div>
+
+<div class="card-panel">
+  <div style="overflow-x:auto;">
+    <table class="proxim-table">
+      <thead>
+        <tr><th>#</th><th>Prestataire</th><th>Montant</th><th>Numéro mobile</th><th>Méthode</th><th>Statut</th><th>Date</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for r in retraits %}
+        <tr>
+          <td style="color:var(--gold);font-weight:700;">#{{ r.id }}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="user-avatar" style="width:28px;height:28px;font-size:11px;">{{ r.prestatire.prenom|first|upper }}</div>
+              {{ r.prestatire.prenom }} {{ r.prestatire.nom }}
+            </div>
+          </td>
+          <td style="color:var(--gold);font-weight:700;">{{ r.montant|floatformat:0 }} FCFA</td>
+          <td style="color:white;">{{ r.numero_mobile }}</td>
+          <td><span class="badge-status bs-info">{{ r.methode_retrait }}</span></td>
+          <td>
+            {% if r.statut == 'EN_ATTENTE' %}<span class="badge-status bs-warning">En attente</span>
+            {% elif r.statut == 'TRAITE' %}<span class="badge-status bs-success">Traité</span>
+            {% else %}<span class="badge-status bs-error">Rejeté</span>{% endif %}
+          </td>
+          <td style="color:var(--text-muted);">{{ r.date_demande|date:"d/m/Y H:i" }}</td>
+          <td>
+            {% if r.statut == 'EN_ATTENTE' %}
+            <div style="display:flex;gap:6px;">
+              <button class="btn-icon btn-icon-success" title="Marquer comme traité" onclick="traiterRetrait({{ r.id }}, 'traiter', this)">
+                <i class="fas fa-check"></i>
+              </button>
+              <button class="btn-icon btn-icon-error" title="Rejeter" onclick="traiterRetrait({{ r.id }}, 'rejeter', this)">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">Aucun retrait</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function traiterRetrait(id, action, btn) {
+  const labels = {traiter: 'Marquer ce retrait comme traité ?', rejeter: 'Rejeter ce retrait ?'};
+  if (!confirm(labels[action])) return;
+  const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+  fetch(`/admin-dashboard/retraits/${id}/traiter/`, {
+    method: 'POST',
+    headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: `action=${action}`
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) {
+      showToast(d.message, 'success');
+      setTimeout(() => location.reload(), 1000);
+    } else showToast(d.error || 'Erreur', 'error');
+  });
+}
+</script>
+{% endblock %}

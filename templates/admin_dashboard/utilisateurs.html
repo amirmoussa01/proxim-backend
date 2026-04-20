@@ -1,0 +1,107 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Utilisateurs — Proxim Admin{% endblock %}
+{% block topbar_title %}Gestion des <span>Utilisateurs</span>{% endblock %}
+
+{% block content %}
+<div class="page-title">Utilisateurs <span>({{ total }})</span></div>
+<div class="page-subtitle">Gérez tous les comptes de la plateforme</div>
+
+<!-- Filtres -->
+<div class="filter-bar">
+  <form method="get" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;">
+    <div class="search-box flex-grow-1" style="min-width:200px;">
+      <i class="fas fa-search"></i>
+      <input type="text" name="q" value="{{ q }}" placeholder="Rechercher email, nom..." class="filter-input w-100"/>
+    </div>
+    <select name="role" class="filter-input">
+      <option value="">Tous les rôles</option>
+      <option value="client" {% if role == 'client' %}selected{% endif %}>Clients</option>
+      <option value="prestataire" {% if role == 'prestataire' %}selected{% endif %}>Prestataires</option>
+      <option value="admin" {% if role == 'admin' %}selected{% endif %}>Admins</option>
+    </select>
+    <select name="statut" class="filter-input">
+      <option value="">Tous statuts</option>
+      <option value="actif" {% if statut == 'actif' %}selected{% endif %}>Actifs</option>
+      <option value="inactif" {% if statut == 'inactif' %}selected{% endif %}>Inactifs</option>
+    </select>
+    <button type="submit" class="btn btn-gold px-3">
+      <i class="fas fa-filter me-1"></i>Filtrer
+    </button>
+    <a href="{% url 'admin_dashboard:utilisateurs' %}" class="btn btn-outline-proxim px-3">
+      <i class="fas fa-times"></i>
+    </a>
+  </form>
+</div>
+
+<div class="card-panel">
+  <div style="overflow-x:auto;">
+    <table class="proxim-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Utilisateur</th><th>Rôle</th><th>Email vérifié</th>
+          <th>Actif</th><th>Inscription</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td style="color:var(--gold);font-weight:700;">{{ u.id }}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="user-avatar">{{ u.email|first|upper }}</div>
+              <div class="user-info">
+                <div class="name">{{ u.first_name }} {{ u.last_name }}{% if not u.first_name and not u.last_name %}—{% endif %}</div>
+                <div class="email">{{ u.email }}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            {% if u.role == 'client' %}<span class="badge-status bs-info">Client</span>
+            {% elif u.role == 'prestataire' %}<span class="badge-status bs-gold">Prestataire</span>
+            {% else %}<span class="badge-status bs-error">Admin</span>{% endif %}
+          </td>
+          <td>
+            {% if u.is_email_verified %}
+              <i class="fas fa-check-circle" style="color:var(--success);"></i>
+            {% else %}
+              <i class="fas fa-times-circle" style="color:var(--error);"></i>
+            {% endif %}
+          </td>
+          <td>
+            <label class="proxim-switch">
+              <input type="checkbox" {% if u.is_active %}checked{% endif %}
+                onchange="toggleUser({{ u.id }}, this)"/>
+              <span class="slider"></span>
+            </label>
+          </td>
+          <td style="color:var(--text-muted);">{{ u.date_joined|date:"d/m/Y" }}</td>
+          <td>
+            <a href="{% url 'admin_dashboard:detail_user' u.id %}" class="btn-icon btn-icon-info" title="Voir détail">
+              <i class="fas fa-eye"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">
+          <i class="fas fa-users" style="font-size:32px;display:block;margin-bottom:10px;"></i>
+          Aucun utilisateur trouvé
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleUser(userId, checkbox) {
+  proxim_post(
+    `/admin-dashboard/utilisateurs/${userId}/toggle/`,
+    {},
+    (d) => { /* OK */ },
+    (d) => { checkbox.checked = !checkbox.checked; }
+  );
+}
+</script>
+{% endblock %}

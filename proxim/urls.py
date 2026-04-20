@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from admin_dashboard import views as adv
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -15,6 +16,10 @@ urlpatterns = [
     path('api/reviews/', include('reviews.urls')),
     path('api/reports/', include('reports.urls')),
     path('api/chatbot/', include('chatbot.urls')),
+    path('admin-dashboard/login/', adv.login_view, name='admin_login'),
+    path('admin-dashboard/logout/', adv.logout_view, name='admin_logout'),
+    path('admin-dashboard/', include('admin_dashboard.urls')),
+
 ]
 
 if settings.DEBUG:

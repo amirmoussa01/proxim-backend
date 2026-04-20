@@ -25,6 +25,7 @@ THIRD_PARTY_APPS = [
     'cloudinary',
     'cloudinary_storage',
     'social_django',
+    'django_bootstrap5',
 ]
 
 LOCAL_APPS = [
@@ -38,6 +39,7 @@ LOCAL_APPS = [
     'reviews',
     'reports',
     'chatbot',
+    'admin_dashboard',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -60,7 +62,7 @@ ROOT_URLCONF = 'proxim.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

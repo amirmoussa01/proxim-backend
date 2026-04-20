@@ -1,0 +1,122 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Commandes — Proxim Admin{% endblock %}
+{% block topbar_title %}Gestion des <span>Commandes</span>{% endblock %}
+
+{% block content %}
+<div class="page-title">Commandes <span>({{ stats.total }})</span></div>
+<div class="page-subtitle">Suivi de toutes les commandes de la plateforme</div>
+
+<!-- Stats statuts -->
+<div class="row g-2 mb-4">
+  {% with items="EN_NEGOCIATION:Négociation:bs-warning,ACCEPTE:Accepté:bs-info,EN_COURS:En cours:bs-gold,TERMINE:Terminé:bs-success,ANNULE:Annulé:bs-error" %}
+  <div class="col-6 col-md-4 col-lg-2">
+    <a href="?statut=" style="text-decoration:none;">
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:22px;font-weight:800;color:white;">{{ stats.total }}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Total</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <a href="?statut=EN_NEGOCIATION" style="text-decoration:none;">
+      <div style="background:var(--bg-card);border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:#F59E0B;">{{ stats.en_nego }}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Négociation</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <a href="?statut=ACCEPTE" style="text-decoration:none;">
+      <div style="background:var(--bg-card);border:1px solid rgba(59,130,246,0.3);border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:#3B82F6;">{{ stats.accepte }}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Acceptées</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <a href="?statut=EN_COURS" style="text-decoration:none;">
+      <div style="background:var(--bg-card);border:1px solid rgba(244,169,34,0.3);border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:var(--gold);">{{ stats.en_cours }}</div>
+        <div style="font-size:11px;color:var(--text-muted);">En cours</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <a href="?statut=TERMINE" style="text-decoration:none;">
+      <div style="background:var(--bg-card);border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:#10B981;">{{ stats.termine }}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Terminées</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <a href="?statut=ANNULE" style="text-decoration:none;">
+      <div style="background:var(--bg-card);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:#EF4444;">{{ stats.annule }}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Annulées</div>
+      </div>
+    </a>
+  </div>
+  {% endwith %}
+</div>
+
+<div class="filter-bar">
+  <form method="get" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;">
+    <div class="search-box flex-grow-1" style="min-width:200px;">
+      <i class="fas fa-search"></i>
+      <input type="text" name="q" value="{{ q }}" placeholder="Service, client..." class="filter-input w-100"/>
+    </div>
+    <select name="statut" class="filter-input">
+      <option value="">Tous statuts</option>
+      <option value="EN_NEGOCIATION" {% if statut == 'EN_NEGOCIATION' %}selected{% endif %}>Négociation</option>
+      <option value="ACCEPTE" {% if statut == 'ACCEPTE' %}selected{% endif %}>Accepté</option>
+      <option value="EN_COURS" {% if statut == 'EN_COURS' %}selected{% endif %}>En cours</option>
+      <option value="TERMINE" {% if statut == 'TERMINE' %}selected{% endif %}>Terminé</option>
+      <option value="ANNULE" {% if statut == 'ANNULE' %}selected{% endif %}>Annulé</option>
+    </select>
+    <button type="submit" class="btn btn-gold px-3"><i class="fas fa-filter me-1"></i>Filtrer</button>
+    <a href="{% url 'admin_dashboard:commandes' %}" class="btn btn-outline-proxim px-3"><i class="fas fa-times"></i></a>
+  </form>
+</div>
+
+<div class="card-panel">
+  <div style="overflow-x:auto;">
+    <table class="proxim-table">
+      <thead>
+        <tr><th>#</th><th>Service</th><th>Client</th><th>Prestataire</th><th>Statut</th><th>Prix</th><th>Date</th><th>Détail</th></tr>
+      </thead>
+      <tbody>
+        {% for cmd in commandes %}
+        <tr>
+          <td style="color:var(--gold);font-weight:700;">#{{ cmd.id }}</td>
+          <td>{{ cmd.service.titre|truncatechars:25 }}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="user-avatar" style="width:26px;height:26px;font-size:10px;">{{ cmd.client.prenom|first|upper }}</div>
+              {{ cmd.client.prenom }} {{ cmd.client.nom|truncatechars:10 }}
+            </div>
+          </td>
+          <td style="color:var(--text-muted);">{{ cmd.prestatire.prenom }} {{ cmd.prestatire.nom|truncatechars:10 }}</td>
+          <td>
+            {% if cmd.statut == 'EN_NEGOCIATION' %}<span class="badge-status bs-warning">Négociation</span>
+            {% elif cmd.statut == 'ACCEPTE' %}<span class="badge-status bs-info">Accepté</span>
+            {% elif cmd.statut == 'EN_COURS' %}<span class="badge-status bs-gold">En cours</span>
+            {% elif cmd.statut == 'TERMINE' %}<span class="badge-status bs-success">Terminé</span>
+            {% else %}<span class="badge-status bs-error">Annulé</span>{% endif %}
+          </td>
+          <td style="color:var(--gold);">{{ cmd.prix_final|default:cmd.prix_propose|default:"—" }}</td>
+          <td style="color:var(--text-muted);">{{ cmd.date_commande|date:"d/m/Y H:i" }}</td>
+          <td>
+            <a href="{% url 'admin_dashboard:detail_commande' cmd.id %}" class="btn-icon btn-icon-info">
+              <i class="fas fa-eye"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">Aucune commande</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

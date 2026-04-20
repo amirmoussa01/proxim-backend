@@ -1,0 +1,301 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Vue générale — Proxim Admin{% endblock %}
+{% block topbar_title %}Vue générale <span>Dashboard</span>{% endblock %}
+
+{% block content %}
+<div class="page-title">Tableau de bord <span>général</span></div>
+<div class="page-subtitle">Bienvenue sur le panneau d'administration Proxim</div>
+
+<!-- ── Stats principales ── -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3">
+    <div class="stat-card">
+      <div class="icon" style="background:rgba(244,169,34,0.15);">
+        <i class="fas fa-users" style="color:var(--gold);"></i>
+      </div>
+      <div class="value" id="stat-users">{{ total_users }}</div>
+      <div class="label">Utilisateurs total</div>
+      <div class="trend trend-up">
+        <i class="fas fa-arrow-up"></i> {{ nouveaux_ce_mois }} ce mois
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="stat-card">
+      <div class="icon" style="background:rgba(59,130,246,0.15);">
+        <i class="fas fa-briefcase" style="color:#3B82F6;"></i>
+      </div>
+      <div class="value">{{ total_services }}</div>
+      <div class="label">Services publiés</div>
+      <div class="trend trend-up">
+        <i class="fas fa-check-circle"></i> {{ services_actifs }} actifs
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="stat-card">
+      <div class="icon" style="background:rgba(16,185,129,0.15);">
+        <i class="fas fa-shopping-cart" style="color:#10B981;"></i>
+      </div>
+      <div class="value">{{ total_commandes }}</div>
+      <div class="label">Commandes total</div>
+      <div class="trend trend-up">
+        <i class="fas fa-clock"></i> {{ commandes_en_attente }} en attente
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="stat-card">
+      <div class="icon" style="background:rgba(244,169,34,0.15);">
+        <i class="fas fa-coins" style="color:var(--gold);"></i>
+      </div>
+      <div class="value" style="font-size:22px;">{{ revenus_mois|floatformat:0 }}<small style="font-size:13px;color:var(--text-muted);"> F</small></div>
+      <div class="label">Revenus ce mois</div>
+      <div class="trend trend-up">
+        <i class="fas fa-chart-line"></i> {{ total_paiements|floatformat:0 }} F total
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Alertes urgentes ── -->
+{% if kyc_en_attente or retraits_en_attente %}
+<div class="row g-3 mb-4">
+  {% if kyc_en_attente %}
+  <div class="col-md-6">
+    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px;">
+      <div style="width:44px;height:44px;background:rgba(239,68,68,0.15);border-radius:12px;display:flex;align-items:center;justify-content:center;">
+        <i class="fas fa-id-card" style="color:#EF4444;font-size:18px;"></i>
+      </div>
+      <div style="flex:1;">
+        <div style="color:white;font-weight:700;font-size:14px;">{{ kyc_en_attente }} KYC en attente</div>
+        <div style="color:#7a9bbf;font-size:12px;">Documents à vérifier</div>
+      </div>
+      <a href="{% url 'admin_dashboard:kyc' %}?statut=en_attente" class="btn btn-sm btn-gold">Traiter</a>
+    </div>
+  </div>
+  {% endif %}
+  {% if retraits_en_attente %}
+  <div class="col-md-6">
+    <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px;">
+      <div style="width:44px;height:44px;background:rgba(245,158,11,0.15);border-radius:12px;display:flex;align-items:center;justify-content:center;">
+        <i class="fas fa-wallet" style="color:#F59E0B;font-size:18px;"></i>
+      </div>
+      <div style="flex:1;">
+        <div style="color:white;font-weight:700;font-size:14px;">{{ retraits_en_attente }} retrait(s) en attente</div>
+        <div style="color:#7a9bbf;font-size:12px;">Demandes à traiter</div>
+      </div>
+      <a href="{% url 'admin_dashboard:retraits' %}?statut=EN_ATTENTE" class="btn btn-sm btn-gold">Traiter</a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ── Graphes ── -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-8">
+    <div class="card-panel">
+      <div class="panel-header">
+        <h6><i class="fas fa-chart-line"></i> Évolution des commandes (12 mois)</h6>
+        <span style="color:var(--text-muted);font-size:12px;">Données mensuelles</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="chartCommandes"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card-panel h-100">
+      <div class="panel-header">
+        <h6><i class="fas fa-pie-chart"></i> Répartition utilisateurs</h6>
+      </div>
+      <div class="chart-container" style="height:200px;">
+        <canvas id="chartUsers"></canvas>
+      </div>
+      <div style="padding:0 24px 16px;display:flex;gap:20px;justify-content:center;">
+        <div style="text-align:center;">
+          <div style="color:var(--gold);font-size:18px;font-weight:700;">{{ total_clients }}</div>
+          <div style="color:var(--text-muted);font-size:11px;">Clients</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="color:#3B82F6;font-size:18px;font-weight:700;">{{ total_prestataires }}</div>
+          <div style="color:var(--text-muted);font-size:11px;">Prestataires</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Graphe revenus ── -->
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="card-panel">
+      <div class="panel-header">
+        <h6><i class="fas fa-coins"></i> Revenus de la plateforme (12 mois)</h6>
+        <span style="color:var(--gold);font-size:12px;font-weight:600;">Commissions FCFA</span>
+      </div>
+      <div class="chart-container" style="height:200px;">
+        <canvas id="chartRevenus"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Tables ── -->
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card-panel">
+      <div class="panel-header">
+        <h6><i class="fas fa-clock"></i> Dernières commandes</h6>
+        <a href="{% url 'admin_dashboard:commandes' %}" style="color:var(--gold);font-size:12px;text-decoration:none;">Voir tout →</a>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="proxim-table">
+          <thead>
+            <tr>
+              <th>#</th><th>Service</th><th>Client</th><th>Statut</th><th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cmd in dernieres_commandes %}
+            <tr>
+              <td style="color:var(--gold);font-weight:700;">#{{ cmd.id }}</td>
+              <td>{{ cmd.service.titre|truncatechars:25 }}</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div class="user-avatar" style="width:26px;height:26px;font-size:10px;">
+                    {{ cmd.client.prenom|first|upper }}
+                  </div>
+                  {{ cmd.client.prenom }} {{ cmd.client.nom|truncatechars:12 }}
+                </div>
+              </td>
+              <td>
+                {% if cmd.statut == 'EN_NEGOCIATION' %}<span class="badge-status bs-warning">Négociation</span>
+                {% elif cmd.statut == 'ACCEPTE' %}<span class="badge-status bs-info">Accepté</span>
+                {% elif cmd.statut == 'EN_COURS' %}<span class="badge-status bs-gold">En cours</span>
+                {% elif cmd.statut == 'TERMINE' %}<span class="badge-status bs-success">Terminé</span>
+                {% else %}<span class="badge-status bs-error">Annulé</span>{% endif %}
+              </td>
+              <td style="color:var(--text-muted);">{{ cmd.date_commande|date:"d/m/y" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:30px;">Aucune commande</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card-panel">
+      <div class="panel-header">
+        <h6><i class="fas fa-star"></i> Top services</h6>
+      </div>
+      <div style="padding:8px 0;">
+        {% for svc in top_services %}
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid rgba(30,58,95,0.4);">
+          <div style="width:32px;height:32px;background:rgba(244,169,34,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--gold);font-size:13px;">{{ forloop.counter }}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="color:white;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ svc.titre }}</div>
+            <div style="color:var(--text-muted);font-size:11px;">{{ svc.categorie.nom }}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="color:var(--gold);font-weight:700;font-size:14px;">{{ svc.nb_commandes }}</div>
+            <div style="color:var(--text-muted);font-size:10px;">commandes</div>
+          </div>
+        </div>
+        {% empty %}
+        <div style="text-align:center;color:var(--text-muted);padding:30px;">Aucun service</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Graphe commandes
+  fetch("{% url 'admin_dashboard:api_graphe_commandes' %}")
+    .then(r => r.json())
+    .then(d => {
+      new Chart(document.getElementById('chartCommandes'), {
+        type: 'line',
+        data: {
+          labels: d.labels,
+          datasets: [{
+            label: 'Commandes',
+            data: d.data,
+            borderColor: '#F4A922',
+            backgroundColor: 'rgba(244,169,34,0.08)',
+            borderWidth: 2.5,
+            pointBackgroundColor: '#F4A922',
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            fill: true,
+            tension: 0.4,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: 'rgba(30,58,95,0.5)' } },
+            y: { grid: { color: 'rgba(30,58,95,0.5)' }, beginAtZero: true }
+          }
+        }
+      });
+    });
+
+  // Graphe users
+  new Chart(document.getElementById('chartUsers'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Clients', 'Prestataires'],
+      datasets: [{
+        data: [{{ total_clients }}, {{ total_prestataires }}],
+        backgroundColor: ['#F4A922', '#3B82F6'],
+        borderWidth: 0,
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '68%',
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+
+  // Graphe revenus
+  fetch("{% url 'admin_dashboard:api_graphe_revenus' %}")
+    .then(r => r.json())
+    .then(d => {
+      new Chart(document.getElementById('chartRevenus'), {
+        type: 'bar',
+        data: {
+          labels: d.labels,
+          datasets: [{
+            label: 'Revenus (FCFA)',
+            data: d.data,
+            backgroundColor: 'rgba(244,169,34,0.7)',
+            borderRadius: 6,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false } },
+            y: { grid: { color: 'rgba(30,58,95,0.5)' }, beginAtZero: true }
+          }
+        }
+      });
+    });
+});
+</script>
+{% endblock %}

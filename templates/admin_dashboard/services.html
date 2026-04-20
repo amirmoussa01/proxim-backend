@@ -1,0 +1,96 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Services — Proxim Admin{% endblock %}
+{% block topbar_title %}Gestion des <span>Services</span>{% endblock %}
+
+{% block content %}
+<div class="page-title">Services <span>({{ total }})</span></div>
+<div class="page-subtitle">Gérez tous les services publiés sur la plateforme</div>
+
+<div class="filter-bar">
+  <form method="get" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;">
+    <div class="search-box flex-grow-1" style="min-width:200px;">
+      <i class="fas fa-search"></i>
+      <input type="text" name="q" value="{{ q }}" placeholder="Titre, prestataire..." class="filter-input w-100"/>
+    </div>
+    <select name="categorie" class="filter-input">
+      <option value="">Toutes catégories</option>
+      {% for cat in categories %}
+      <option value="{{ cat.id }}" {% if categorie_id == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.nom }}</option>
+      {% endfor %}
+    </select>
+    <select name="statut" class="filter-input">
+      <option value="">Tous statuts</option>
+      <option value="actif" {% if statut == 'actif' %}selected{% endif %}>Actifs</option>
+      <option value="inactif" {% if statut == 'inactif' %}selected{% endif %}>Inactifs</option>
+    </select>
+    <button type="submit" class="btn btn-gold px-3"><i class="fas fa-filter me-1"></i>Filtrer</button>
+    <a href="{% url 'admin_dashboard:services' %}" class="btn btn-outline-proxim px-3"><i class="fas fa-times"></i></a>
+  </form>
+</div>
+
+<div class="card-panel">
+  <div style="overflow-x:auto;">
+    <table class="proxim-table">
+      <thead>
+        <tr><th>#</th><th>Service</th><th>Prestataire</th><th>Catégorie</th><th>Prix</th><th>Commandes</th><th>Actif</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for svc in services %}
+        <tr>
+          <td style="color:var(--gold);font-weight:700;">{{ svc.id }}</td>
+          <td>
+            <div style="color:white;font-weight:600;font-size:13px;">{{ svc.titre|truncatechars:30 }}</div>
+            <div style="color:var(--text-muted);font-size:11px;">{{ svc.date_creation|date:"d/m/Y" }}</div>
+          </td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="user-avatar" style="width:26px;height:26px;font-size:10px;">{{ svc.prestatire.prenom|first|upper }}</div>
+              {{ svc.prestatire.prenom }} {{ svc.prestatire.nom|truncatechars:10 }}
+            </div>
+          </td>
+          <td><span class="badge-status bs-info">{{ svc.categorie.nom }}</span></td>
+          <td style="color:var(--gold);font-weight:600;">
+            {% if svc.pricing_type == 'SUR_DEVIS' %}Sur devis
+            {% else %}{{ svc.prix_base|floatformat:0 }} F{% endif %}
+          </td>
+          <td style="text-align:center;">
+            <span style="background:rgba(244,169,34,0.12);color:var(--gold);padding:3px 10px;border-radius:10px;font-weight:700;font-size:13px;">{{ svc.nb_commandes }}</span>
+          </td>
+          <td>
+            <label class="proxim-switch">
+              <input type="checkbox" {% if svc.is_available %}checked{% endif %}
+                onchange="toggleService({{ svc.id }}, this)"/>
+              <span class="slider"></span>
+            </label>
+          </td>
+          <td>
+            <button class="btn-icon btn-icon-error" title="Supprimer" onclick="supprimerService({{ svc.id }}, '{{ svc.titre|escapejs }}', this)">
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">Aucun service</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleService(id, checkbox) {
+  proxim_post(`/admin-dashboard/services/${id}/toggle/`, {},
+    () => {},
+    () => { checkbox.checked = !checkbox.checked; }
+  );
+}
+function supprimerService(id, titre, btn) {
+  if (!confirm(`Supprimer définitivement le service "${titre}" ?`)) return;
+  proxim_post(`/admin-dashboard/services/${id}/supprimer/`, {},
+    () => { btn.closest('tr').remove(); }
+  );
+}
+</script>
+{% endblock %}
