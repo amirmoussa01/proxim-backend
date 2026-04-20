@@ -1,0 +1,144 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Signalements — Proxim Admin{% endblock %}
+{% block topbar_title %}Gestion des <span>Signalements</span>{% endblock %}
+
+{% block content %}
+<div class="page-title">Signalements <span>({{ stats.total }})</span></div>
+<div class="page-subtitle">Traitement des signalements et modération</div>
+
+<div class="row g-2 mb-4">
+  <div class="col-6 col-md-3">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;">
+      <div style="font-size:22px;font-weight:800;color:white;">{{ stats.total }}</div>
+      <div style="font-size:11px;color:var(--text-muted);">Total</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="?statut=EN_ATTENTE" style="text-decoration:none;">
+      <div style="background:var(--bg-card);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:14px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:#EF4444;">{{ stats.en_attente }}</div>
+        <div style="font-size:11px;color:var(--text-muted);">En attente</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="?statut=TRAITE" style="text-decoration:none;">
+      <div style="background:var(--bg-card);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:14px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:#10B981;">{{ stats.traite }}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Traités</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="?statut=REJETE" style="text-decoration:none;">
+      <div style="background:var(--bg-card);border:1px solid rgba(107,114,128,0.3);border-radius:10px;padding:14px;text-align:center;">
+        <div style="font-size:22px;font-weight:800;color:#6B7280;">{{ stats.rejete }}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Rejetés</div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <form method="get" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;">
+    <select name="statut" class="filter-input">
+      <option value="">Tous statuts</option>
+      <option value="EN_ATTENTE" {% if statut == 'EN_ATTENTE' %}selected{% endif %}>En attente</option>
+      <option value="TRAITE" {% if statut == 'TRAITE' %}selected{% endif %}>Traités</option>
+      <option value="REJETE" {% if statut == 'REJETE' %}selected{% endif %}>Rejetés</option>
+    </select>
+    <select name="raison" class="filter-input">
+      <option value="">Toutes raisons</option>
+      <option value="COMPORTEMENT" {% if raison == 'COMPORTEMENT' %}selected{% endif %}>Comportement</option>
+      <option value="ARNAQUE" {% if raison == 'ARNAQUE' %}selected{% endif %}>Arnaque</option>
+      <option value="CONTENU_INAPPROPRIE" {% if raison == 'CONTENU_INAPPROPRIE' %}selected{% endif %}>Contenu inapproprié</option>
+      <option value="AUTRE" {% if raison == 'AUTRE' %}selected{% endif %}>Autre</option>
+    </select>
+    <button type="submit" class="btn btn-gold px-3"><i class="fas fa-filter me-1"></i>Filtrer</button>
+    <a href="{% url 'admin_dashboard:signalements' %}" class="btn btn-outline-proxim px-3"><i class="fas fa-times"></i></a>
+  </form>
+</div>
+
+<div class="card-panel">
+  <div style="overflow-x:auto;">
+    <table class="proxim-table">
+      <thead>
+        <tr><th>#</th><th>Signaleur</th><th>Cible</th><th>Raison</th><th>Description</th><th>Statut</th><th>Date</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for sig in signalements %}
+        <tr>
+          <td style="color:var(--gold);font-weight:700;">#{{ sig.id }}</td>
+          <td>
+            <div class="user-info">
+              <div class="name">{{ sig.reporter.email|truncatechars:22 }}</div>
+              <div class="email">{{ sig.reporter.role }}</div>
+            </div>
+          </td>
+          <td>
+            <a href="{% url 'admin_dashboard:detail_user' sig.cible_user.id %}" style="color:var(--gold);text-decoration:none;">
+              {{ sig.cible_user.email|truncatechars:22 }}
+            </a>
+          </td>
+          <td>
+            {% if sig.raison == 'ARNAQUE' %}<span class="badge-status bs-error">Arnaque</span>
+            {% elif sig.raison == 'COMPORTEMENT' %}<span class="badge-status bs-warning">Comportement</span>
+            {% elif sig.raison == 'CONTENU_INAPPROPRIE' %}<span class="badge-status bs-info">Contenu</span>
+            {% else %}<span class="badge-status bs-gold">Autre</span>{% endif %}
+          </td>
+          <td style="color:var(--text-muted);max-width:200px;">{{ sig.description|truncatechars:60 }}</td>
+          <td>
+            {% if sig.statut == 'EN_ATTENTE' %}<span class="badge-status bs-warning">En attente</span>
+            {% elif sig.statut == 'TRAITE' %}<span class="badge-status bs-success">Traité</span>
+            {% else %}<span class="badge-status bs-error">Rejeté</span>{% endif %}
+          </td>
+          <td style="color:var(--text-muted);">{{ sig.date|date:"d/m/Y" }}</td>
+          <td>
+            {% if sig.statut == 'EN_ATTENTE' %}
+            <div style="display:flex;gap:4px;flex-wrap:wrap;">
+              <button class="btn-icon btn-icon-success" title="Marquer traité" onclick="actionSignalement({{ sig.id }}, 'traiter')">
+                <i class="fas fa-check"></i>
+              </button>
+              <button class="btn-icon btn-icon-error" title="Rejeter" onclick="actionSignalement({{ sig.id }}, 'rejeter')">
+                <i class="fas fa-times"></i>
+              </button>
+              <button class="btn-icon btn-icon-error" style="background:rgba(239,68,68,0.25);" title="Suspendre l'utilisateur cible" onclick="actionSignalement({{ sig.id }}, 'suspendre_user')">
+                <i class="fas fa-ban"></i>
+              </button>
+            </div>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">
+          <i class="fas fa-flag" style="font-size:32px;display:block;margin-bottom:10px;"></i>
+          Aucun signalement
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function actionSignalement(id, action) {
+  const labels = {
+    traiter: 'Marquer comme traité ?',
+    rejeter: 'Rejeter ce signalement ?',
+    suspendre_user: '⚠️ Suspendre cet utilisateur ?'
+  };
+  if (!confirm(labels[action])) return;
+  const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+  fetch(`/admin-dashboard/signalements/${id}/traiter/`, {
+    method: 'POST',
+    headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: `action=${action}`
+  }).then(r => r.json()).then(d => {
+    if (d.success) { showToast(d.message, 'success'); setTimeout(() => location.reload(), 1000); }
+    else showToast(d.error || 'Erreur', 'error');
+  });
+}
+</script>
+{% endblock %}

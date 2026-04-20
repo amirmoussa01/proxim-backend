@@ -3,8 +3,55 @@
 {% block topbar_title %}Gestion des <span>Utilisateurs</span>{% endblock %}
 
 {% block content %}
-<div class="page-title">Utilisateurs <span>({{ total }})</span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
+  <div class="page-title">Utilisateurs <span>({{ total }})</span></div>
+  <button class="btn btn-gold px-4" data-bs-toggle="modal" data-bs-target="#modalBroadcast">
+    <i class="fas fa-bell me-2"></i>Notifier tous
+  </button>
+</div>
 <div class="page-subtitle">Gérez tous les comptes de la plateforme</div>
+
+<!-- Stats -->
+<div class="row g-2 mb-4">
+  <div class="col-6 col-md-2">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+      <div style="font-size:20px;font-weight:800;color:white;">{{ stats.total }}</div>
+      <div style="font-size:11px;color:var(--text-muted);">Total</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <a href="?role=client" style="text-decoration:none;">
+      <div style="background:var(--bg-card);border:1px solid rgba(59,130,246,0.3);border-radius:10px;padding:12px;text-align:center;">
+        <div style="font-size:20px;font-weight:800;color:#3B82F6;">{{ stats.clients }}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Clients</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-2">
+    <a href="?role=prestataire" style="text-decoration:none;">
+      <div style="background:var(--bg-card);border:1px solid rgba(244,169,34,0.3);border-radius:10px;padding:12px;text-align:center;">
+        <div style="font-size:20px;font-weight:800;color:var(--gold);">{{ stats.prestataires }}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Prestataires</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-2">
+    <a href="?statut=actif" style="text-decoration:none;">
+      <div style="background:var(--bg-card);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:12px;text-align:center;">
+        <div style="font-size:20px;font-weight:800;color:#10B981;">{{ stats.actifs }}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Actifs</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-2">
+    <a href="?statut=non_verifie" style="text-decoration:none;">
+      <div style="background:var(--bg-card);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px;text-align:center;">
+        <div style="font-size:20px;font-weight:800;color:#EF4444;">{{ stats.non_verifies }}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Non vérifiés</div>
+      </div>
+    </a>
+  </div>
+</div>
 
 <!-- Filtres -->
 <div class="filter-bar">
@@ -23,13 +70,10 @@
       <option value="">Tous statuts</option>
       <option value="actif" {% if statut == 'actif' %}selected{% endif %}>Actifs</option>
       <option value="inactif" {% if statut == 'inactif' %}selected{% endif %}>Inactifs</option>
+      <option value="non_verifie" {% if statut == 'non_verifie' %}selected{% endif %}>Email non vérifié</option>
     </select>
-    <button type="submit" class="btn btn-gold px-3">
-      <i class="fas fa-filter me-1"></i>Filtrer
-    </button>
-    <a href="{% url 'admin_dashboard:utilisateurs' %}" class="btn btn-outline-proxim px-3">
-      <i class="fas fa-times"></i>
-    </a>
+    <button type="submit" class="btn btn-gold px-3"><i class="fas fa-filter me-1"></i>Filtrer</button>
+    <a href="{% url 'admin_dashboard:utilisateurs' %}" class="btn btn-outline-proxim px-3"><i class="fas fa-times"></i></a>
   </form>
 </div>
 
@@ -37,10 +81,7 @@
   <div style="overflow-x:auto;">
     <table class="proxim-table">
       <thead>
-        <tr>
-          <th>#</th><th>Utilisateur</th><th>Rôle</th><th>Email vérifié</th>
-          <th>Actif</th><th>Inscription</th><th>Actions</th>
-        </tr>
+        <tr><th>#</th><th>Utilisateur</th><th>Rôle</th><th>Email vérifié</th><th>Actif</th><th>Inscription</th><th>Actions</th></tr>
       </thead>
       <tbody>
         {% for u in users %}
@@ -50,7 +91,10 @@
             <div style="display:flex;align-items:center;gap:10px;">
               <div class="user-avatar">{{ u.email|first|upper }}</div>
               <div class="user-info">
-                <div class="name">{{ u.first_name }} {{ u.last_name }}{% if not u.first_name and not u.last_name %}—{% endif %}</div>
+                <div class="name">
+                  {{ u.first_name }} {{ u.last_name }}
+                  {% if not u.first_name and not u.last_name %}—{% endif %}
+                </div>
                 <div class="email">{{ u.email }}</div>
               </div>
             </div>
@@ -64,7 +108,9 @@
             {% if u.is_email_verified %}
               <i class="fas fa-check-circle" style="color:var(--success);"></i>
             {% else %}
-              <i class="fas fa-times-circle" style="color:var(--error);"></i>
+              <button class="btn-icon btn-icon-warning" title="Vérifier manuellement" onclick="verifierEmail({{ u.id }}, this)">
+                <i class="fas fa-envelope"></i>
+              </button>
             {% endif %}
           </td>
           <td>
@@ -76,9 +122,40 @@
           </td>
           <td style="color:var(--text-muted);">{{ u.date_joined|date:"d/m/Y" }}</td>
           <td>
-            <a href="{% url 'admin_dashboard:detail_user' u.id %}" class="btn-icon btn-icon-info" title="Voir détail">
-              <i class="fas fa-eye"></i>
-            </a>
+            <div style="display:flex;gap:5px;align-items:center;">
+              <a href="{% url 'admin_dashboard:detail_user' u.id %}" class="btn-icon btn-icon-info" title="Voir détail">
+                <i class="fas fa-eye"></i>
+              </a>
+              <button class="btn-icon btn-icon-warning" title="Envoyer notification" onclick="ouvrirNotif({{ u.id }}, '{{ u.email|escapejs }}')">
+                <i class="fas fa-bell"></i>
+              </button>
+              <div class="dropdown">
+                <button class="btn-icon" style="background:rgba(255,255,255,0.05);color:var(--text-muted);" data-bs-toggle="dropdown">
+                  <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;min-width:160px;">
+                  <li>
+                    <a class="dropdown-item" style="color:var(--text);font-size:13px;padding:8px 14px;cursor:pointer;"
+                       onclick="changerRole({{ u.id }}, 'client')">
+                      <i class="fas fa-user me-2" style="color:#3B82F6;"></i>Passer client
+                    </a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item" style="color:var(--text);font-size:13px;padding:8px 14px;cursor:pointer;"
+                       onclick="changerRole({{ u.id }}, 'prestataire')">
+                      <i class="fas fa-briefcase me-2" style="color:var(--gold);"></i>Passer prestataire
+                    </a>
+                  </li>
+                  <li><hr style="border-color:var(--border);margin:4px 0;"></li>
+                  <li>
+                    <a class="dropdown-item" style="color:#EF4444;font-size:13px;padding:8px 14px;cursor:pointer;"
+                       onclick="supprimerUser({{ u.id }}, '{{ u.email|escapejs }}')">
+                      <i class="fas fa-trash me-2"></i>Supprimer
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </td>
         </tr>
         {% empty %}
@@ -91,16 +168,119 @@
     </table>
   </div>
 </div>
+
+<!-- Modal notification individuelle -->
+<div class="modal fade proxim-modal" id="modalNotif" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-bell me-2" style="color:var(--gold);"></i>Envoyer une notification</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:24px;">
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">Destinataire : <strong id="notif-email" style="color:var(--gold);"></strong></p>
+        <input type="hidden" id="notif-user-id"/>
+        <div class="mb-3">
+          <label style="color:var(--text-muted);font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Titre *</label>
+          <input type="text" id="notif-titre" class="filter-input w-100" placeholder="Titre de la notification"/>
+        </div>
+        <div>
+          <label style="color:var(--text-muted);font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Message *</label>
+          <textarea id="notif-contenu" class="filter-input w-100" rows="3" placeholder="Contenu du message..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-proxim" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-gold px-4" onclick="envoyerNotif()">
+          <i class="fas fa-paper-plane me-2"></i>Envoyer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal broadcast -->
+<div class="modal fade proxim-modal" id="modalBroadcast" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-bullhorn me-2" style="color:var(--gold);"></i>Notification groupée</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:24px;">
+        <div class="mb-3">
+          <label style="color:var(--text-muted);font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Destinataires</label>
+          <select id="broadcast-cible" class="filter-input w-100">
+            <option value="tous">Tous les utilisateurs actifs</option>
+            <option value="clients">Clients uniquement</option>
+            <option value="prestataires">Prestataires uniquement</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label style="color:var(--text-muted);font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Titre *</label>
+          <input type="text" id="broadcast-titre" class="filter-input w-100" placeholder="Titre de la notification"/>
+        </div>
+        <div>
+          <label style="color:var(--text-muted);font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Message *</label>
+          <textarea id="broadcast-contenu" class="filter-input w-100" rows="3" placeholder="Contenu du message..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-proxim" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-gold px-4" onclick="envoyerBroadcast()">
+          <i class="fas fa-bullhorn me-2"></i>Envoyer à tous
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function toggleUser(userId, checkbox) {
-  proxim_post(
-    `/admin-dashboard/utilisateurs/${userId}/toggle/`,
-    {},
-    (d) => { /* OK */ },
-    (d) => { checkbox.checked = !checkbox.checked; }
+function toggleUser(userId, cb) {
+  proxim_post(`/admin-dashboard/utilisateurs/${userId}/toggle/`, {}, ()=>{}, ()=>{ cb.checked = !cb.checked; });
+}
+function verifierEmail(userId, btn) {
+  proxim_post(`/admin-dashboard/utilisateurs/${userId}/verifier-email/`, {},
+    () => { btn.outerHTML = '<i class="fas fa-check-circle" style="color:var(--success);"></i>'; }
+  );
+}
+function changerRole(userId, role) {
+  if (!confirm(`Changer le rôle en "${role}" ?`)) return;
+  proxim_post(`/admin-dashboard/utilisateurs/${userId}/changer-role/`, {role},
+    () => setTimeout(() => location.reload(), 800)
+  );
+}
+function supprimerUser(userId, email) {
+  if (!confirm(`Supprimer définitivement "${email}" ?`)) return;
+  proxim_post(`/admin-dashboard/utilisateurs/${userId}/supprimer/`, {},
+    () => setTimeout(() => location.reload(), 800)
+  );
+}
+function ouvrirNotif(userId, email) {
+  document.getElementById('notif-user-id').value = userId;
+  document.getElementById('notif-email').textContent = email;
+  document.getElementById('notif-titre').value = '';
+  document.getElementById('notif-contenu').value = '';
+  new bootstrap.Modal(document.getElementById('modalNotif')).show();
+}
+function envoyerNotif() {
+  const userId = document.getElementById('notif-user-id').value;
+  const titre = document.getElementById('notif-titre').value.trim();
+  const contenu = document.getElementById('notif-contenu').value.trim();
+  if (!titre || !contenu) { showToast('Titre et message obligatoires', 'warning'); return; }
+  proxim_post(`/admin-dashboard/utilisateurs/${userId}/notifier/`, {titre, contenu},
+    () => bootstrap.Modal.getInstance(document.getElementById('modalNotif')).hide()
+  );
+}
+function envoyerBroadcast() {
+  const titre = document.getElementById('broadcast-titre').value.trim();
+  const contenu = document.getElementById('broadcast-contenu').value.trim();
+  const cible = document.getElementById('broadcast-cible').value;
+  if (!titre || !contenu) { showToast('Titre et message obligatoires', 'warning'); return; }
+  proxim_post('/admin-dashboard/notifications/broadcast/', {titre, contenu, cible},
+    () => bootstrap.Modal.getInstance(document.getElementById('modalBroadcast')).hide()
   );
 }
 </script>

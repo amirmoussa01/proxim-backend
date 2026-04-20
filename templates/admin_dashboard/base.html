@@ -572,6 +572,21 @@
       <i class="fas fa-id-card"></i> KYC
       {% if kyc_en_attente %}<span class="sidebar-badge">{{ kyc_en_attente }}</span>{% endif %}
     </a>
+
+    <div class="sidebar-section">Communauté</div>
+    <a href="{% url 'admin_dashboard:posts' %}" class="sidebar-item {% if page == 'posts' %}active{% endif %}">
+      <i class="fas fa-photo-video"></i> Posts Feed
+    </a>
+    <a href="{% url 'admin_dashboard:messagerie' %}" class="sidebar-item {% if page == 'messagerie' %}active{% endif %}">
+      <i class="fas fa-comments"></i> Messagerie
+    </a>
+    <a href="{% url 'admin_dashboard:avis' %}" class="sidebar-item {% if page == 'avis' %}active{% endif %}">
+      <i class="fas fa-star"></i> Avis
+    </a>
+    <a href="{% url 'admin_dashboard:signalements' %}" class="sidebar-item {% if page == 'signalements' %}active{% endif %}">
+      <i class="fas fa-flag"></i> Signalements
+      {% if signalements_en_attente %}<span class="sidebar-badge">{{ signalements_en_attente }}</span>{% endif %}
+    </a>
   </div>
 
   <div class="sidebar-footer">

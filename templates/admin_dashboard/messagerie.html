@@ -1,0 +1,78 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Messagerie — Proxim Admin{% endblock %}
+{% block topbar_title %}Supervision <span>Messagerie</span>{% endblock %}
+
+{% block content %}
+<div class="page-title">Messagerie</div>
+<div class="page-subtitle">Supervision des conversations (lecture seule)</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="stat-card">
+      <div class="icon" style="background:rgba(59,130,246,0.15);"><i class="fas fa-comments" style="color:#3B82F6;"></i></div>
+      <div class="value">{{ conversations.count }}</div>
+      <div class="label">Conversations actives</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card">
+      <div class="icon" style="background:rgba(16,185,129,0.15);"><i class="fas fa-envelope" style="color:#10B981;"></i></div>
+      <div class="value">{{ total_messages }}</div>
+      <div class="label">Messages total</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card">
+      <div class="icon" style="background:rgba(245,158,11,0.15);"><i class="fas fa-envelope-open" style="color:#F59E0B;"></i></div>
+      <div class="value">{{ total_non_lus }}</div>
+      <div class="label">Messages non lus</div>
+    </div>
+  </div>
+</div>
+
+<div class="card-panel">
+  <div style="overflow-x:auto;">
+    <table class="proxim-table">
+      <thead>
+        <tr><th>#</th><th>Client</th><th>Prestataire</th><th>Messages</th><th>Dernier message</th><th>Commande liée</th></tr>
+      </thead>
+      <tbody>
+        {% for conv in conversations %}
+        <tr>
+          <td style="color:var(--gold);font-weight:700;">#{{ conv.id }}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="user-avatar" style="width:26px;height:26px;font-size:10px;">{{ conv.client.prenom|first|upper }}</div>
+              {{ conv.client.prenom }} {{ conv.client.nom }}
+            </div>
+          </td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="user-avatar" style="width:26px;height:26px;font-size:10px;background:rgba(59,130,246,0.2);color:#3B82F6;">
+                {{ conv.prestatire.prenom|first|upper }}
+              </div>
+              {{ conv.prestatire.prenom }} {{ conv.prestatire.nom }}
+            </div>
+          </td>
+          <td style="text-align:center;">
+            <span style="background:rgba(244,169,34,0.12);color:var(--gold);padding:3px 10px;border-radius:10px;font-weight:700;">{{ conv.nb_messages }}</span>
+          </td>
+          <td style="color:var(--text-muted);">
+            {% if conv.dernier_message_date %}{{ conv.dernier_message_date|date:"d/m/Y H:i" }}{% else %}—{% endif %}
+          </td>
+          <td>
+            {% if conv.order %}
+              <a href="{% url 'admin_dashboard:detail_commande' conv.order.id %}" style="color:var(--gold);text-decoration:none;">
+                <i class="fas fa-link me-1"></i>#{{ conv.order.id }}
+              </a>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">Aucune conversation</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
