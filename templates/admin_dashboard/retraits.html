@@ -10,7 +10,7 @@
 <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;align-items:center;gap:14px;">
   <i class="fas fa-exclamation-triangle" style="color:#F59E0B;font-size:20px;"></i>
   <div>
-    <div style="color:white;font-weight:700;">{{ total_en_attente|floatformat:0 }} FCFA en attente de traitement</div>
+    <div style="color:var(--text);font-weight:700;">{{ total_en_attente|floatformat:0 }} FCFA en attente de traitement</div>
     <div style="color:var(--text-muted);font-size:12px;">Traitez les demandes ci-dessous</div>
   </div>
 </div>
@@ -46,7 +46,7 @@
             </div>
           </td>
           <td style="color:var(--gold);font-weight:700;">{{ r.montant|floatformat:0 }} FCFA</td>
-          <td style="color:white;">{{ r.numero_mobile }}</td>
+          <td style="color:var(--text);">{{ r.numero_mobile }}</td>
           <td><span class="badge-status bs-info">{{ r.methode_retrait }}</span></td>
           <td>
             {% if r.statut == 'EN_ATTENTE' %}<span class="badge-status bs-warning">En attente</span>

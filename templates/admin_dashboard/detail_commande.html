@@ -6,7 +6,7 @@
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
   <a href="{% url 'admin_dashboard:commandes' %}" style="color:var(--text-muted);text-decoration:none;"><i class="fas fa-arrow-left"></i> Retour</a>
   <span style="color:var(--border);">/</span>
-  <span style="color:white;font-weight:600;">Commande #{{ commande.id }}</span>
+  <span style="color:var(--text);font-weight:600;">Commande #{{ commande.id }}</span>
 </div>
 
 <div class="row g-3">
@@ -16,16 +16,16 @@
       <div style="padding:20px;display:flex;flex-direction:column;gap:12px;">
         <div style="background:var(--bg-card2);border-radius:10px;padding:14px;">
           <div style="color:var(--text-muted);font-size:11px;margin-bottom:4px;">Service</div>
-          <div style="color:white;font-weight:600;">{{ commande.service.titre }}</div>
+          <div style="color:var(--text);font-weight:600;">{{ commande.service.titre }}</div>
         </div>
         <div style="display:flex;gap:10px;">
           <div style="flex:1;background:var(--bg-card2);border-radius:10px;padding:14px;">
             <div style="color:var(--text-muted);font-size:11px;margin-bottom:4px;">Client</div>
-            <div style="color:white;font-size:13px;font-weight:600;">{{ commande.client.prenom }} {{ commande.client.nom }}</div>
+            <div style="color:var(--text);font-size:13px;font-weight:600;">{{ commande.client.prenom }} {{ commande.client.nom }}</div>
           </div>
           <div style="flex:1;background:var(--bg-card2);border-radius:10px;padding:14px;">
             <div style="color:var(--text-muted);font-size:11px;margin-bottom:4px;">Prestataire</div>
-            <div style="color:white;font-size:13px;font-weight:600;">{{ commande.prestatire.prenom }} {{ commande.prestatire.nom }}</div>
+            <div style="color:var(--text);font-size:13px;font-weight:600;">{{ commande.prestatire.prenom }} {{ commande.prestatire.nom }}</div>
           </div>
         </div>
         <div style="background:var(--bg-card2);border-radius:10px;padding:14px;">
@@ -49,7 +49,7 @@
         {% if commande.notes_client %}
         <div style="background:var(--bg-card2);border-radius:10px;padding:14px;">
           <div style="color:var(--text-muted);font-size:11px;margin-bottom:6px;">Notes client</div>
-          <div style="color:white;font-size:13px;line-height:1.5;">{{ commande.notes_client }}</div>
+          <div style="color:var(--text);font-size:13px;line-height:1.5;">{{ commande.notes_client }}</div>
         </div>
         {% endif %}
         {% if paiement %}
@@ -57,7 +57,7 @@
           <div style="color:#10B981;font-weight:700;font-size:13px;margin-bottom:8px;"><i class="fas fa-credit-card me-1"></i>Paiement</div>
           <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
             <span style="color:var(--text-muted);font-size:12px;">Montant</span>
-            <span style="color:white;font-weight:600;">{{ paiement.montant_total }} FCFA</span>
+            <span style="color:var(--text);font-weight:600;">{{ paiement.montant_total }} FCFA</span>
           </div>
           <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
             <span style="color:var(--text-muted);font-size:12px;">Commission</span>
@@ -65,7 +65,7 @@
           </div>
           <div style="display:flex;justify-content:space-between;">
             <span style="color:var(--text-muted);font-size:12px;">Méthode</span>
-            <span style="color:white;">{{ paiement.methode }}</span>
+            <span style="color:var(--text);">{{ paiement.methode }}</span>
           </div>
         </div>
         {% endif %}
@@ -87,7 +87,7 @@
             {% if not forloop.last %}<div style="width:2px;flex:1;background:var(--border);margin:4px 0;min-height:20px;"></div>{% endif %}
           </div>
           <div style="flex:1;padding-top:6px;">
-            <div style="color:white;font-size:13px;font-weight:600;">{{ h.statut }}</div>
+            <div style="color:var(--text);font-size:13px;font-weight:600;">{{ h.statut }}</div>
             <div style="color:var(--text-muted);font-size:11px;margin-top:2px;">
               {{ h.date|date:"d/m/Y H:i" }}
               {% if h.commentaire %} — {{ h.commentaire }}{% endif %}
@@ -111,7 +111,7 @@
             <span style="color:var(--gold);font-size:12px;font-weight:600;">{{ neg.expediteur.email }}</span>
             <span style="color:var(--text-muted);font-size:11px;">{{ neg.date|date:"d/m H:i" }}</span>
           </div>
-          <div style="color:white;font-size:13px;">{{ neg.message }}</div>
+          <div style="color:var(--text);font-size:13px;">{{ neg.message }}</div>
           {% if neg.prix_propose %}
           <div style="color:var(--success);font-size:12px;margin-top:6px;font-weight:600;">
             <i class="fas fa-tag me-1"></i>Prix proposé : {{ neg.prix_propose }} FCFA

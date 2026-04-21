@@ -59,7 +59,7 @@
           <td style="color:var(--gold);font-weight:700;">#{{ p.id }}</td>
           <td>{{ p.client.prenom }} {{ p.client.nom }}</td>
           <td style="color:var(--text-muted);">#{{ p.order.id }}</td>
-          <td style="color:white;font-weight:600;">{{ p.montant_total|floatformat:0 }} F</td>
+          <td style="color:var(--text);font-weight:600;">{{ p.montant_total|floatformat:0 }} F</td>
           <td style="color:var(--gold);">{{ p.commission_plateforme|floatformat:0 }} F</td>
           <td><span class="badge-status bs-info">{{ p.methode }}</span></td>
           <td>

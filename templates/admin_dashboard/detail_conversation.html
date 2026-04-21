@@ -6,7 +6,7 @@
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
   <a href="{% url 'admin_dashboard:messagerie' %}" style="color:var(--text-muted);text-decoration:none;"><i class="fas fa-arrow-left"></i> Messagerie</a>
   <span style="color:var(--border);">/</span>
-  <span style="color:white;">{{ conv.client.prenom }} ↔ {{ conv.prestatire.prenom }}</span>
+  <span style="color:var(--text);">{{ conv.client.prenom }} ↔ {{ conv.prestatire.prenom }}</span>
 </div>
 
 <div class="row g-3">
@@ -19,7 +19,7 @@
           <div style="display:flex;align-items:center;gap:8px;">
             <div class="user-avatar" style="width:28px;height:28px;font-size:11px;">{{ conv.client.prenom|first|upper }}</div>
             <div>
-              <div style="color:white;font-size:13px;font-weight:600;">{{ conv.client.prenom }} {{ conv.client.nom }}</div>
+              <div style="color:var(--text);font-size:13px;font-weight:600;">{{ conv.client.prenom }} {{ conv.client.nom }}</div>
             </div>
           </div>
         </div>
@@ -28,7 +28,7 @@
           <div style="display:flex;align-items:center;gap:8px;">
             <div class="user-avatar" style="width:28px;height:28px;font-size:11px;background:rgba(59,130,246,0.2);color:#3B82F6;">{{ conv.prestatire.prenom|first|upper }}</div>
             <div>
-              <div style="color:white;font-size:13px;font-weight:600;">{{ conv.prestatire.prenom }} {{ conv.prestatire.nom }}</div>
+              <div style="color:var(--text);font-size:13px;font-weight:600;">{{ conv.prestatire.prenom }} {{ conv.prestatire.nom }}</div>
             </div>
           </div>
         </div>
@@ -62,7 +62,7 @@
               {% if msg.is_deleted %}
               <div style="color:#EF4444;font-size:12px;"><i class="fas fa-flag me-1"></i>Message signalé</div>
               {% else %}
-              <div style="color:white;font-size:13px;line-height:1.5;">{{ msg.contenu }}</div>
+              <div style="color:var(--text);font-size:13px;line-height:1.5;">{{ msg.contenu }}</div>
               {% if msg.image %}<img src="{{ msg.image }}" style="max-width:100%;border-radius:8px;margin-top:6px;" alt="Image"/>{% endif %}
               {% endif %}
             </div>

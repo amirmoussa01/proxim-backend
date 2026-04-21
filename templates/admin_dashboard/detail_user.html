@@ -9,7 +9,7 @@
       <i class="fas fa-arrow-left"></i> Retour
     </a>
     <span style="color:var(--border);">/</span>
-    <span style="color:white;font-weight:600;">{{ u.email }}</span>
+    <span style="color:var(--text);font-weight:600;">{{ u.email }}</span>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <a href="{% url 'admin_dashboard:exporter_user_pdf' u.id %}" class="btn btn-outline-proxim px-3" target="_blank">
@@ -38,7 +38,7 @@
           <div class="user-avatar" style="width:80px;height:80px;font-size:30px;margin:0 auto 14px;">{{ u.email|first|upper }}</div>
         {% endif %}
 
-        <div style="color:white;font-size:18px;font-weight:700;">
+        <div style="color:var(--text);font-size:18px;font-weight:700;">
           {% if profil %}{{ profil.prenom }} {{ profil.nom }}{% else %}{{ u.email }}{% endif %}
         </div>
         <div style="color:var(--text-muted);font-size:13px;margin-top:4px;">{{ u.email }}</div>
@@ -65,17 +65,17 @@
         <div style="background:var(--bg-card2);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;">
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <span style="color:var(--text-muted);font-size:12px;"><i class="fas fa-phone me-1"></i>Téléphone</span>
-            <span style="color:white;font-size:13px;">{{ u.phone|default:"—" }}</span>
+            <span style="color:var(--text);font-size:13px;">{{ u.phone|default:"—" }}</span>
           </div>
           {% if profil %}
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <span style="color:var(--text-muted);font-size:12px;"><i class="fas fa-map-marker-alt me-1"></i>Adresse</span>
-            <span style="color:white;font-size:13px;text-align:right;max-width:160px;">{{ profil.adresse|default:"—" }}</span>
+            <span style="color:var(--text);font-size:13px;text-align:right;max-width:160px;">{{ profil.adresse|default:"—" }}</span>
           </div>
           {% endif %}
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <span style="color:var(--text-muted);font-size:12px;"><i class="fas fa-calendar me-1"></i>Inscription</span>
-            <span style="color:white;font-size:13px;">{{ u.date_joined|date:"d/m/Y" }}</span>
+            <span style="color:var(--text);font-size:13px;">{{ u.date_joined|date:"d/m/Y" }}</span>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <span style="color:var(--text-muted);font-size:12px;"><i class="fas fa-envelope me-1"></i>Email vérifié</span>
@@ -92,7 +92,7 @@
           </div>
           <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
             <span style="color:var(--text-muted);font-size:12px;">Nombre d'avis</span>
-            <span style="color:white;">{{ profil.nombre_avis }}</span>
+            <span style="color:var(--text);">{{ profil.nombre_avis }}</span>
           </div>
           <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
             <span style="color:var(--text-muted);font-size:12px;">KYC Vérifié</span>
@@ -116,7 +116,7 @@
         {% if profil and profil.bio %}
         <div style="background:var(--bg-card2);border-radius:10px;padding:14px;margin-top:10px;">
           <div style="color:var(--text-muted);font-size:11px;margin-bottom:6px;">Bio</div>
-          <div style="color:white;font-size:13px;line-height:1.5;">{{ profil.bio }}</div>
+          <div style="color:var(--text);font-size:13px;line-height:1.5;">{{ profil.bio }}</div>
         </div>
         {% endif %}
       </div>
@@ -141,7 +141,7 @@
                style="font-size:11px;{% if tx.type == 'CREDIT' %}color:#10B981;{% else %}color:#EF4444;{% endif %}"></i>
           </div>
           <div style="flex:1;min-width:0;">
-            <div style="color:white;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ tx.description|truncatechars:30 }}</div>
+            <div style="color:var(--text);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ tx.description|truncatechars:30 }}</div>
             <div style="color:var(--text-muted);font-size:10px;">{{ tx.date|date:"d/m/Y" }}</div>
           </div>
           <div style="font-weight:700;font-size:13px;{% if tx.type == 'CREDIT' %}color:#10B981;{% else %}color:#EF4444;{% endif %}">
@@ -258,7 +258,7 @@
               <i class="fas fa-file-alt" style="color:var(--gold);"></i>
             </div>
             <div style="flex:1;">
-              <div style="color:white;font-size:13px;font-weight:600;">{{ kyc.type_document }}</div>
+              <div style="color:var(--text);font-size:13px;font-weight:600;">{{ kyc.type_document }}</div>
               <div style="color:var(--text-muted);font-size:11px;">{{ kyc.date_soumission|date:"d/m/Y H:i" }}</div>
             </div>
             {% if kyc.statut == 'valide' %}<span class="badge-status bs-success">Validé</span>
@@ -290,7 +290,7 @@
               </div>
               <span style="color:var(--text-muted);font-size:11px;">{{ a.date|date:"d/m/Y" }}</span>
             </div>
-            <div style="color:white;font-size:13px;">{{ a.commentaire|default:"Aucun commentaire" }}</div>
+            <div style="color:var(--text);font-size:13px;">{{ a.commentaire|default:"Aucun commentaire" }}</div>
           </div>
           {% empty %}
           <div style="text-align:center;color:var(--text-muted);padding:30px;">Aucun avis</div>
@@ -310,7 +310,7 @@
               <span style="color:var(--text-muted);font-size:11px;">{{ post.date_publication|date:"d/m/Y H:i" }}</span>
               {% if post.is_active %}<span class="badge-status bs-success">Actif</span>{% else %}<span class="badge-status bs-error">Masqué</span>{% endif %}
             </div>
-            <div style="color:white;font-size:13px;line-height:1.5;">{{ post.contenu|truncatechars:120 }}</div>
+            <div style="color:var(--text);font-size:13px;line-height:1.5;">{{ post.contenu|truncatechars:120 }}</div>
           </div>
           {% empty %}
           <div style="text-align:center;color:var(--text-muted);padding:30px;">Aucun post</div>

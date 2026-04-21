@@ -79,7 +79,7 @@
           <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--bg-card2);border-radius:8px;">
             <div class="user-avatar" style="width:28px;height:28px;font-size:11px;flex-shrink:0;">{{ w.user.email|first|upper }}</div>
             <div style="flex:1;min-width:0;">
-              <div style="color:white;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ w.user.email|truncatechars:22 }}</div>
+              <div style="color:var(--text);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ w.user.email|truncatechars:22 }}</div>
             </div>
             <div style="color:#10B981;font-weight:700;font-size:13px;flex-shrink:0;">{{ w.solde|floatformat:0 }}</div>
           </div>
@@ -136,7 +136,7 @@
             <tr>
               <td>{{ p.client.prenom|truncatechars:10 }}</td>
               <td style="color:var(--text-muted);">{{ p.order.service.titre|truncatechars:18 }}</td>
-              <td style="color:white;font-weight:600;">{{ p.montant_total|floatformat:0 }} F</td>
+              <td style="color:var(--text);font-weight:600;">{{ p.montant_total|floatformat:0 }} F</td>
               <td style="color:var(--gold);">{{ p.commission_plateforme|floatformat:0 }} F</td>
               <td style="color:var(--text-muted);">{{ p.date_paiement|date:"d/m/Y" }}</td>
             </tr>

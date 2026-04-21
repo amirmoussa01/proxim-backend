@@ -21,19 +21,19 @@
           <div style="display:flex;flex-direction:column;gap:8px;">
             <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-card2);border-radius:8px;cursor:pointer;border:1px solid transparent;transition:all 0.2s;" id="label-tous">
               <input type="radio" name="cible" value="tous" checked onchange="updateCible(this)"/>
-              <span style="color:white;font-size:13px;">🌍 Tous les utilisateurs actifs</span>
+              <span style="color:var(--text);font-size:13px;"> Tous les utilisateurs actifs</span>
             </label>
             <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-card2);border-radius:8px;cursor:pointer;border:1px solid transparent;transition:all 0.2s;" id="label-clients">
               <input type="radio" name="cible" value="clients" onchange="updateCible(this)"/>
-              <span style="color:white;font-size:13px;">👤 Clients uniquement</span>
+              <span style="color:var(--text);font-size:13px;"> Clients uniquement</span>
             </label>
             <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-card2);border-radius:8px;cursor:pointer;border:1px solid transparent;transition:all 0.2s;" id="label-prestataires">
               <input type="radio" name="cible" value="prestataires" onchange="updateCible(this)"/>
-              <span style="color:white;font-size:13px;">🔧 Prestataires uniquement</span>
+              <span style="color:var(--text);font-size:13px;"> Prestataires uniquement</span>
             </label>
             <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-card2);border-radius:8px;cursor:pointer;border:1px solid transparent;transition:all 0.2s;" id="label-individuel">
               <input type="radio" name="cible" value="individuel" onchange="updateCible(this)"/>
-              <span style="color:white;font-size:13px;">👤 Utilisateur spécifique</span>
+              <span style="color:var(--text);font-size:13px;"> Utilisateur spécifique</span>
             </label>
           </div>
         </div>
@@ -85,7 +85,7 @@
               <i class="fas fa-bell" style="color:var(--primary);font-size:16px;"></i>
             </div>
             <div>
-              <div style="color:white;font-size:13px;font-weight:700;" id="preview-titre">Titre du message</div>
+              <div style="color:var(--text);font-size:13px;font-weight:700;" id="preview-titre">Titre du message</div>
               <div style="color:var(--text-muted);font-size:11px;">Proxim • à l'instant</div>
             </div>
           </div>
@@ -101,23 +101,23 @@
         {% for template in templates %}{% endfor %}
         <div class="template-item" onclick="appliquerTemplate('Bienvenue sur Proxim !', 'Nous sommes ravis de vous accueillir sur Proxim, votre marketplace de services au Bénin. Découvrez des prestataires de qualité près de chez vous !')">
           <i class="fas fa-hand-wave" style="color:var(--gold);"></i>
-          <div><div style="color:white;font-size:13px;font-weight:600;">Message de bienvenue</div><div style="color:var(--text-muted);font-size:11px;">Pour les nouveaux utilisateurs</div></div>
+          <div><div style="color:var(--text);font-size:13px;font-weight:600;">Message de bienvenue</div><div style="color:var(--text-muted);font-size:11px;">Pour les nouveaux utilisateurs</div></div>
         </div>
         <div class="template-item" onclick="appliquerTemplate('Nouvelle fonctionnalité disponible 🎉', 'Bonne nouvelle ! Proxim vient de lancer de nouvelles fonctionnalités pour améliorer votre expérience. Découvrez-les dès maintenant !')">
           <i class="fas fa-star" style="color:#10B981;"></i>
-          <div><div style="color:white;font-size:13px;font-weight:600;">Nouvelle fonctionnalité</div><div style="color:var(--text-muted);font-size:11px;">Annonce de mise à jour</div></div>
+          <div><div style="color:var(--text);font-size:13px;font-weight:600;">Nouvelle fonctionnalité</div><div style="color:var(--text-muted);font-size:11px;">Annonce de mise à jour</div></div>
         </div>
         <div class="template-item" onclick="appliquerTemplate('Maintenance planifiée', 'Proxim sera temporairement indisponible pour maintenance. Nous travaillons à améliorer votre expérience. Merci de votre compréhension.')">
           <i class="fas fa-tools" style="color:#F59E0B;"></i>
-          <div><div style="color:white;font-size:13px;font-weight:600;">Maintenance</div><div style="color:var(--text-muted);font-size:11px;">Notification de maintenance</div></div>
+          <div><div style="color:var(--text);font-size:13px;font-weight:600;">Maintenance</div><div style="color:var(--text-muted);font-size:11px;">Notification de maintenance</div></div>
         </div>
         <div class="template-item" onclick="appliquerTemplate('Complétez votre profil !', 'Votre profil est incomplet. Un profil complet augmente vos chances d\'être trouvé par les clients. Ajoutez votre photo et votre bio dès maintenant !')">
           <i class="fas fa-user-edit" style="color:#3B82F6;"></i>
-          <div><div style="color:white;font-size:13px;font-weight:600;">Compléter le profil</div><div style="color:var(--text-muted);font-size:11px;">Relance prestataires</div></div>
+          <div><div style="color:var(--text);font-size:13px;font-weight:600;">Compléter le profil</div><div style="color:var(--text-muted);font-size:11px;">Relance prestataires</div></div>
         </div>
         <div class="template-item" onclick="appliquerTemplate('Soumettre vos documents KYC', 'Pour sécuriser votre compte et accéder à toutes les fonctionnalités, veuillez soumettre vos documents d\'identité dans l\'application.')">
           <i class="fas fa-id-card" style="color:#EF4444;"></i>
-          <div><div style="color:white;font-size:13px;font-weight:600;">KYC requis</div><div style="color:var(--text-muted);font-size:11px;">Demande de documents</div></div>
+          <div><div style="color:var(--text);font-size:13px;font-weight:600;">KYC requis</div><div style="color:var(--text-muted);font-size:11px;">Demande de documents</div></div>
         </div>
       </div>
     </div>

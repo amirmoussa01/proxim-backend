@@ -21,7 +21,7 @@
             {% if cat.icone %}{{ cat.icone }}{% else %}🏷️{% endif %}
           </div>
           <div style="flex:1;">
-            <div style="color:white;font-size:15px;font-weight:700;">{{ cat.nom }}</div>
+            <div style="color:var(--text);font-size:15px;font-weight:700;">{{ cat.nom }}</div>
             <div style="color:var(--text-muted);font-size:12px;">{{ cat.nb_services }} service{{ cat.nb_services|pluralize }}</div>
           </div>
           {% if cat.is_active %}

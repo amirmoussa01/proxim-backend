@@ -9,7 +9,7 @@
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
     <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;">
-      <div style="font-size:26px;font-weight:800;color:white;">{{ stats.total }}</div>
+      <div style="font-size:26px;font-weight:800;color:var(--text);">{{ stats.total }}</div>
       <div style="font-size:12px;color:var(--text-muted);">Total</div>
     </div>
   </div>
@@ -66,7 +66,7 @@
             <div style="display:flex;align-items:center;gap:8px;">
               <div class="user-avatar" style="width:28px;height:28px;font-size:11px;">{{ doc.prestatire.prenom|first|upper }}</div>
               <div>
-                <div style="color:white;font-size:13px;font-weight:600;">{{ doc.prestatire.prenom }} {{ doc.prestatire.nom }}</div>
+                <div style="color:var(--text);font-size:13px;font-weight:600;">{{ doc.prestatire.prenom }} {{ doc.prestatire.nom }}</div>
                 <div style="color:var(--text-muted);font-size:11px;">{{ doc.prestatire.user.email }}</div>
               </div>
             </div>
