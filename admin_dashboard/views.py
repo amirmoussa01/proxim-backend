@@ -7,10 +7,14 @@ from django.utils import timezone
 from datetime import timedelta, date
 from io import BytesIO
 from .decorators import admin_required
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+from reportlab.platypus import KeepTogether
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+from reportlab.pdfgen import canvas as rl_canvas
 
 from django.contrib.auth import get_user_model
 from accounts.models import ClientProfile, PrestatireProfile, KYCDocument
@@ -395,8 +399,8 @@ def detail_user(request, user_id):
 
 @admin_required
 def exporter_user_pdf(request, user_id):
+    """Génère un PDF avec toutes les infos de l'utilisateur via ReportLab."""
     user = get_object_or_404(User, id=user_id)
-
     profil = None
     commandes = []
     avis = []
@@ -405,135 +409,345 @@ def exporter_user_pdf(request, user_id):
     if user.role == 'client':
         try:
             profil = user.client_profile
-            commandes = list(Order.objects.filter(client=profil)[:20])
-            avis = list(Review.objects.filter(client=profil)[:10])
-        except:
+            commandes = list(Order.objects.filter(client=profil).select_related('service').order_by('-date_commande')[:20])
+            avis = list(Review.objects.filter(client=profil).order_by('-date')[:10])
+        except Exception:
             pass
-
     elif user.role == 'prestataire':
         try:
             profil = user.prestatire_profile
-            commandes = list(Order.objects.filter(prestatire=profil)[:20])
-            avis = list(Review.objects.filter(prestatire=profil)[:10])
-        except:
+            commandes = list(Order.objects.filter(prestatire=profil).select_related('service').order_by('-date_commande')[:20])
+            avis = list(Review.objects.filter(prestatire=profil).order_by('-date')[:10])
+        except Exception:
             pass
 
     try:
         wallet = Wallet.objects.get(user=user)
-    except:
+    except Exception:
         pass
 
-    buffer = BytesIO()
+    # ── Couleurs Proxim ──────────────────────────────────────────────
+    DARK_BLUE  = colors.HexColor('#0D1B2A')
+    GOLD       = colors.HexColor('#F4A922')
+    LIGHT_GRAY = colors.HexColor('#F8F9FA')
+    MID_GRAY   = colors.HexColor('#EEEEEE')
+    TEXT_DARK  = colors.HexColor('#222222')
+    TEXT_GRAY  = colors.HexColor('#666666')
+    GREEN      = colors.HexColor('#10B981')
+    WHITE      = colors.white
 
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    # ── Styles ───────────────────────────────────────────────────────
     styles = getSampleStyleSheet()
 
-    elements = []
+    style_section_title = ParagraphStyle(
+        'SectionTitle',
+        fontName='Helvetica-Bold',
+        fontSize=9,
+        textColor=WHITE,
+        spaceAfter=0,
+        spaceBefore=0,
+        leftIndent=0,
+    )
+    style_label = ParagraphStyle(
+        'Label',
+        fontName='Helvetica',
+        fontSize=8,
+        textColor=TEXT_GRAY,
+        spaceAfter=1,
+    )
+    style_value = ParagraphStyle(
+        'Value',
+        fontName='Helvetica-Bold',
+        fontSize=11,
+        textColor=TEXT_DARK,
+        spaceAfter=0,
+    )
+    style_value_green = ParagraphStyle(
+        'ValueGreen',
+        fontName='Helvetica-Bold',
+        fontSize=14,
+        textColor=GREEN,
+        spaceAfter=0,
+    )
+    style_footer = ParagraphStyle(
+        'Footer',
+        fontName='Helvetica',
+        fontSize=8,
+        textColor=TEXT_GRAY,
+        alignment=TA_CENTER,
+    )
+    style_table_header = ParagraphStyle(
+        'TableHeader',
+        fontName='Helvetica-Bold',
+        fontSize=8,
+        textColor=WHITE,
+    )
+    style_table_cell = ParagraphStyle(
+        'TableCell',
+        fontName='Helvetica',
+        fontSize=8,
+        textColor=TEXT_DARK,
+    )
 
-    # 🟡 Titre
-    elements.append(Paragraph(f"<b>Fiche Utilisateur #{user.id}</b>", styles['Title']))
-    elements.append(Spacer(1, 10))
+    # ── Canvas callback pour header et footer de page ────────────────
+    now_str = timezone.now().strftime('%d/%m/%Y à %H:%M')
 
-    
-    elements.append(Paragraph("<b>Informations générales</b>", styles['Heading2']))
+    def on_first_page(c, doc):
+        _draw_page_chrome(c, doc, now_str, DARK_BLUE, GOLD, WHITE, TEXT_GRAY, is_first=True)
 
-    data = [
-        ["Email", user.email],
-        ["Rôle", user.role],
-        ["Téléphone", user.phone or "—"],
-        ["Inscription", user.date_joined.strftime('%d/%m/%Y')],
-        ["Email vérifié", "Oui" if user.is_email_verified else "Non"],
-        ["Actif", "Oui" if user.is_active else "Non"],
-    ]
+    def on_later_pages(c, doc):
+        _draw_page_chrome(c, doc, now_str, DARK_BLUE, GOLD, WHITE, TEXT_GRAY, is_first=False)
 
-    table = Table(data)
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.black),
-    ]))
+    # ── Construction du document ─────────────────────────────────────
+    buffer = BytesIO()
+    PAGE_W, PAGE_H = A4
+    MARGIN = 20 * mm
 
-    elements.append(table)
-    elements.append(Spacer(1, 15))
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=MARGIN,
+        rightMargin=MARGIN,
+        topMargin=52 * mm,   # espace pour le header graphique
+        bottomMargin=22 * mm,
+        title=f"Fiche Utilisateur #{user.id}",
+        author="Proxim Admin",
+    )
 
-    # 🟢 Profil
-    if profil:
-        elements.append(Paragraph("<b>Profil</b>", styles['Heading2']))
+    story = []
 
-        nom = f"{getattr(profil, 'prenom', '')} {getattr(profil, 'nom', '')}"
+    # ─── Titre principal ─────────────────────────────────────────────
+    story.append(Paragraph(
+        f'<font color="#0D1B2A"><b>Fiche Utilisateur</b></font>'
+        f' <font color="#F4A922">#{user.id}</font>',
+        ParagraphStyle('MainTitle', fontName='Helvetica-Bold', fontSize=18,
+                       textColor=DARK_BLUE, spaceAfter=4)
+    ))
+    story.append(HRFlowable(width='100%', thickness=3, color=GOLD, spaceAfter=14))
 
-        data = [
-            ["Nom complet", nom],
-            ["Adresse", getattr(profil, 'adresse', '—')],
-        ]
-
-        if user.role == 'prestataire':
-            data += [
-                ["Niveau", profil.niveau],
-                ["Note", f"{profil.note_moyenne}/5"],
-                ["Vérifié", "Oui" if profil.is_verified else "Non"],
-            ]
-
-        table = Table(data)
-        table.setStyle(TableStyle([
-            ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+    # ─── Helper : section header ─────────────────────────────────────
+    def section_header(title):
+        tbl = Table([[Paragraph(title.upper(), style_section_title)]],
+                    colWidths=[PAGE_W - 2 * MARGIN])
+        tbl.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), DARK_BLUE),
+            ('LEFTPADDING',  (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+            ('TOPPADDING',   (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING',(0, 0), (-1, -1), 6),
+            ('ROUNDEDCORNERS', [4, 4, 4, 4]),
         ]))
+        return tbl
 
-        elements.append(table)
-        elements.append(Spacer(1, 15))
+    # ─── Helper : grille info 2 colonnes ─────────────────────────────
+    def info_grid(items):
+        """items = [(label, value), ...]"""
+        rows = []
+        for i in range(0, len(items), 2):
+            row = []
+            for label, value in items[i:i+2]:
+                cell = Table(
+                    [[Paragraph(label, style_label)],
+                     [Paragraph(str(value), style_value)]],
+                    colWidths=[(PAGE_W - 2 * MARGIN) / 2 - 6],
+                )
+                cell.setStyle(TableStyle([
+                    ('BACKGROUND',   (0, 0), (-1, -1), LIGHT_GRAY),
+                    ('ROUNDEDCORNERS', [4, 4, 4, 4]),
+                    ('LEFTPADDING',  (0, 0), (-1, -1), 10),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+                    ('TOPPADDING',   (0, 0), (-1, -1), 6),
+                    ('BOTTOMPADDING',(0, 0), (-1, -1), 6),
+                ]))
+                row.append(cell)
+            if len(row) == 1:
+                row.append('')  # cellule vide si nombre impair
+            rows.append(row)
 
-    # 💰 Wallet
+        tbl = Table(rows, colWidths=[(PAGE_W - 2 * MARGIN) / 2 - 3] * 2,
+                    hAlign='LEFT')
+        tbl.setStyle(TableStyle([
+            ('VALIGN',       (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING',  (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+            ('TOPPADDING',   (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING',(0, 0), (-1, -1), 3),
+        ]))
+        return tbl
+
+    # ─── Section : Informations générales ────────────────────────────
+    story.append(section_header('Informations générales'))
+    story.append(Spacer(1, 6))
+
+    gen_items = [
+        ('Email',          user.email),
+        ('Rôle',           user.role.upper()),
+        ('Téléphone',      user.phone or '—'),
+        ('Inscription',    user.date_joined.strftime('%d/%m/%Y')),
+        ('Email vérifié',  'Oui' if user.is_email_verified else 'Non'),
+        ('Compte actif',   'Oui' if user.is_active else 'Non'),
+    ]
+    story.append(info_grid(gen_items))
+    story.append(Spacer(1, 10))
+
+    # ─── Section : Profil ────────────────────────────────────────────
+    if profil:
+        nom_complet = f"{getattr(profil, 'prenom', '')} {getattr(profil, 'nom', '')}".strip() or '—'
+        adresse = getattr(profil, 'adresse', '') or '—'
+
+        story.append(section_header('Profil'))
+        story.append(Spacer(1, 6))
+
+        profil_items = [
+            ('Nom complet', nom_complet),
+            ('Adresse',     adresse),
+        ]
+        if user.role == 'prestataire':
+            bio = profil.bio or '—'
+            bio_short = (bio[:80] + '…') if len(bio) > 80 else bio
+            profil_items += [
+                ('Niveau',       profil.niveau.upper()),
+                ('Note moyenne', f'{profil.note_moyenne}/5  ({profil.nombre_avis} avis)'),
+                ('KYC Vérifié',  'Oui' if profil.is_verified else 'Non'),
+                ('Bio',          bio_short),
+            ]
+        story.append(info_grid(profil_items))
+        story.append(Spacer(1, 10))
+
+    # ─── Section : Portefeuille ───────────────────────────────────────
     if wallet:
-        elements.append(Paragraph("<b>Portefeuille</b>", styles['Heading2']))
-        elements.append(Paragraph(f"Solde: {wallet.solde} {wallet.devise}", styles['Normal']))
-        elements.append(Spacer(1, 15))
+        story.append(section_header('Portefeuille'))
+        story.append(Spacer(1, 6))
 
-    # 📦 Commandes
+        wallet_cell = Table(
+            [[Paragraph('Solde actuel', style_label)],
+             [Paragraph(f'{wallet.solde} {wallet.devise}', style_value_green)]],
+            colWidths=[PAGE_W - 2 * MARGIN],
+        )
+        wallet_cell.setStyle(TableStyle([
+            ('BACKGROUND',   (0, 0), (-1, -1), LIGHT_GRAY),
+            ('LEFTPADDING',  (0, 0), (-1, -1), 14),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 14),
+            ('TOPPADDING',   (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING',(0, 0), (-1, -1), 10),
+        ]))
+        story.append(wallet_cell)
+        story.append(Spacer(1, 10))
+
+    # ─── Section : Commandes ─────────────────────────────────────────
     if commandes:
-        elements.append(Paragraph("<b>Commandes</b>", styles['Heading2']))
+        story.append(section_header(f'Historique commandes ({len(commandes)})'))
+        story.append(Spacer(1, 6))
 
-        data = [["ID", "Service", "Prix", "Date"]]
-
+        headers = ['#', 'Service', 'Statut', 'Prix', 'Date']
+        data = [[Paragraph(h, style_table_header) for h in headers]]
         for cmd in commandes:
             data.append([
-                cmd.id,
-                cmd.service.titre[:20],
-                str(cmd.prix_final or cmd.prix_propose),
-                cmd.date_commande.strftime('%d/%m/%Y')
+                Paragraph(f'#{cmd.id}', style_table_cell),
+                Paragraph(cmd.service.titre[:35], style_table_cell),
+                Paragraph(cmd.statut, style_table_cell),
+                Paragraph(str(cmd.prix_final or cmd.prix_propose or '—'), style_table_cell),
+                Paragraph(cmd.date_commande.strftime('%d/%m/%Y'), style_table_cell),
             ])
 
-        table = Table(data)
-        table.setStyle(TableStyle([
-            ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+        col_w = PAGE_W - 2 * MARGIN
+        cmd_tbl = Table(data, colWidths=[col_w * r for r in [.08, .38, .20, .17, .17]])
+        cmd_tbl.setStyle(TableStyle([
+            ('BACKGROUND',   (0, 0), (-1, 0),  DARK_BLUE),
+            ('TEXTCOLOR',    (0, 0), (-1, 0),  WHITE),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, LIGHT_GRAY]),
+            ('GRID',         (0, 0), (-1, -1), 0.4, MID_GRAY),
+            ('LEFTPADDING',  (0, 0), (-1, -1), 7),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 7),
+            ('TOPPADDING',   (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING',(0, 0), (-1, -1), 5),
+            ('VALIGN',       (0, 0), (-1, -1), 'MIDDLE'),
+            ('LINEBELOW',    (0, 0), (-1, 0),  1.5, GOLD),
         ]))
+        story.append(cmd_tbl)
+        story.append(Spacer(1, 10))
 
-        elements.append(table)
-        elements.append(Spacer(1, 15))
-
-    # ⭐ Avis
+    # ─── Section : Avis ──────────────────────────────────────────────
     if avis:
-        elements.append(Paragraph("<b>Avis</b>", styles['Heading2']))
+        note_moy = sum(a.note for a in avis) / len(avis)
+        story.append(section_header(f'Avis ({len(avis)})  —  Moyenne : {note_moy:.1f} / 5'))
+        story.append(Spacer(1, 6))
 
-        data = [["Note", "Commentaire"]]
-
+        headers = ['Note', 'Commentaire', 'Date']
+        data = [[Paragraph(h, style_table_header) for h in headers]]
         for a in avis:
+            comment = a.commentaire or '—'
+            comment_short = (comment[:65] + '…') if len(comment) > 65 else comment
             data.append([
-                "⭐" * a.note,
-                a.commentaire[:50]
+                Paragraph('★' * a.note + '☆' * (5 - a.note), style_table_cell),
+                Paragraph(comment_short, style_table_cell),
+                Paragraph(a.date.strftime('%d/%m/%Y'), style_table_cell),
             ])
 
-        table = Table(data)
-        table.setStyle(TableStyle([
-            ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+        col_w = PAGE_W - 2 * MARGIN
+        avis_tbl = Table(data, colWidths=[col_w * r for r in [.16, .64, .20]])
+        avis_tbl.setStyle(TableStyle([
+            ('BACKGROUND',   (0, 0), (-1, 0),  DARK_BLUE),
+            ('TEXTCOLOR',    (0, 0), (-1, 0),  WHITE),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, LIGHT_GRAY]),
+            ('GRID',         (0, 0), (-1, -1), 0.4, MID_GRAY),
+            ('LEFTPADDING',  (0, 0), (-1, -1), 7),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 7),
+            ('TOPPADDING',   (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING',(0, 0), (-1, -1), 5),
+            ('VALIGN',       (0, 0), (-1, -1), 'MIDDLE'),
+            ('LINEBELOW',    (0, 0), (-1, 0),  1.5, GOLD),
         ]))
+        story.append(avis_tbl)
+        story.append(Spacer(1, 10))
 
-        elements.append(table)
+    # ─── Footer inline ────────────────────────────────────────────────
+    story.append(HRFlowable(width='100%', thickness=0.5, color=MID_GRAY, spaceBefore=10, spaceAfter=6))
+    story.append(Paragraph(
+        f'Document généré automatiquement par Proxim Admin • '
+        f'{timezone.now().strftime("%d/%m/%Y %H:%M")} • Confidentiel',
+        style_footer
+    ))
 
-    # 🧾 Build PDF
-    doc.build(elements)
+    doc.build(story, onFirstPage=on_first_page, onLaterPages=on_later_pages)
 
     buffer.seek(0)
+    response = HttpResponse(buffer.read(), content_type='application/pdf')
+    response['Content-Disposition'] = (
+        f'attachment; filename="user_{user_id}_{user.email.split("@")[0]}.pdf"'
+    )
+    return response
 
-    return HttpResponse(buffer, content_type='application/pdf')
+
+# ── Fonction utilitaire dessin page (header graphique) ───────────────────────
+def _draw_page_chrome(c, doc, now_str, DARK_BLUE, GOLD, WHITE, TEXT_GRAY, is_first):
+    PAGE_W, PAGE_H = A4
+    # Bande header
+    c.saveState()
+    c.setFillColor(DARK_BLUE)
+    c.rect(0, PAGE_H - 30 * mm, PAGE_W, 30 * mm, fill=1, stroke=0)
+    # Accent or sous le header
+    c.setFillColor(GOLD)
+    c.rect(0, PAGE_H - 30 * mm - 2.5, PAGE_W, 2.5, fill=1, stroke=0)
+
+    # Logo texte "Proxim."
+    c.setFillColor(WHITE)
+    c.setFont('Helvetica-Bold', 20)
+    c.drawString(20 * mm, PAGE_H - 18 * mm, 'Proxim')
+    c.setFillColor(GOLD)
+    c.drawString(20 * mm + c.stringWidth('Proxim', 'Helvetica-Bold', 20), PAGE_H - 18 * mm, '.')
+
+    # Date à droite
+    c.setFillColor(WHITE)
+    c.setFont('Helvetica', 8)
+    date_text = f'Fiche utilisateur — Générée le {now_str}'
+    c.drawRightString(PAGE_W - 20 * mm, PAGE_H - 18 * mm, date_text)
+
+    # Numéro de page en bas
+    c.setFillColor(TEXT_GRAY)
+    c.setFont('Helvetica', 8)
+    c.drawCentredString(PAGE_W / 2, 10 * mm, f'Page {doc.page}')
+    c.restoreState()
 
 
 # ── Services ──────────────────────────────────────────────────
