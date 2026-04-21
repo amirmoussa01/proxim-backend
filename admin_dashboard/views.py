@@ -1016,7 +1016,7 @@ def wallet_plateforme(request):
     volume_total = Payment.objects.filter(statut='SUCCES').aggregate(t=Sum('montant_total'))['t'] or 0
 
     # Solde théorique de la plateforme
-    solde_plateforme = float(revenus_total) - float(retraits_total)
+    solde_plateforme = float(volume_total) - float(retraits_total)
 
     # Wallets utilisateurs (soldes prestataires)
     wallets = Wallet.objects.select_related('user').order_by('-solde')
