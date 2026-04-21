@@ -397,9 +397,99 @@ def detail_user(request, user_id):
 
     return render(request, 'admin_dashboard/detail_user.html', ctx)
 
+# ── Couleurs Proxim ───────────────────────────────────────────────────────────
+_DARK_BLUE  = colors.HexColor('#0D1B2A')
+_GOLD       = colors.HexColor('#F4A922')
+_GOLD_LIGHT = colors.HexColor('#FDE9B8')
+_LIGHT_GRAY = colors.HexColor('#F4F6F9')
+_MID_GRAY   = colors.HexColor('#DDE2EA')
+_TEXT_DARK  = colors.HexColor('#1A1A2E')
+_TEXT_GRAY  = colors.HexColor('#6B7280')
+_GREEN      = colors.HexColor('#059669')
+_WHITE      = colors.white
+
+
+def _proxim_page_chrome(c, doc, ref_doc, now_str, generated):
+    """Dessine le header et footer administratif sur chaque page."""
+    W, H = A4
+    MARGIN_H = 18 * mm
+    c.saveState()
+
+    # ── HEADER ──────────────────────────────────────────────────────────────
+    header_h = 40 * mm
+    c.setFillColor(_DARK_BLUE)
+    c.rect(0, H - header_h, W, header_h, fill=1, stroke=0)
+
+    # Bande verticale or à gauche
+    c.setFillColor(_GOLD)
+    c.rect(0, H - header_h, 4, header_h, fill=1, stroke=0)
+
+    # Trait or bas du header
+    c.setFillColor(_GOLD)
+    c.rect(0, H - header_h, W, 2, fill=1, stroke=0)
+
+    # Logo "Proxim."
+    logo_x, logo_y = 14 * mm, H - 18 * mm
+    c.setFillColor(_WHITE)
+    c.setFont('Helvetica-Bold', 22)
+    c.drawString(logo_x, logo_y, 'Proxim')
+    offset = c.stringWidth('Proxim', 'Helvetica-Bold', 22)
+    c.setFillColor(_GOLD)
+    c.drawString(logo_x + offset, logo_y, '.')
+
+    # Tagline
+    c.setFillColor(colors.HexColor('#8FA5BC'))
+    c.setFont('Helvetica', 7.5)
+    c.drawString(logo_x, logo_y - 10, 'Plateforme de services a domicile')
+
+    # Badge "DOCUMENT CONFIDENTIEL"
+    badge_w, badge_h = 58 * mm, 7 * mm
+    badge_x = W - MARGIN_H - badge_w
+    badge_y = H - 10 * mm
+    c.setFillColor(_GOLD)
+    c.roundRect(badge_x, badge_y - badge_h, badge_w, badge_h, 3, fill=1, stroke=0)
+    c.setFillColor(_DARK_BLUE)
+    c.setFont('Helvetica-Bold', 6.5)
+    c.drawCentredString(badge_x + badge_w / 2, badge_y - badge_h + 2,
+                        'DOCUMENT ADMINISTRATIF CONFIDENTIEL')
+
+    # Référence + date
+    c.setFillColor(_WHITE)
+    c.setFont('Helvetica-Bold', 9)
+    c.drawRightString(W - MARGIN_H, H - 23 * mm, f'Ref. : {ref_doc}')
+    c.setFillColor(colors.HexColor('#8FA5BC'))
+    c.setFont('Helvetica', 7.5)
+    c.drawRightString(W - MARGIN_H, H - 31 * mm, f'Genere le {now_str}')
+
+    # Séparateur vertical central
+    c.setStrokeColor(colors.HexColor('#2A4A6A'))
+    c.setLineWidth(0.5)
+    c.line(W / 2, H - header_h + 6, W / 2, H - 6)
+
+    # ── FOOTER ──────────────────────────────────────────────────────────────
+    fy = 14 * mm
+    c.setStrokeColor(_MID_GRAY)
+    c.setLineWidth(0.5)
+    c.line(MARGIN_H, fy + 2, W - MARGIN_H, fy + 2)
+    c.setFillColor(_DARK_BLUE)
+    c.rect(MARGIN_H, fy, W - 2 * MARGIN_H, 2, fill=1, stroke=0)
+
+    c.setFillColor(_TEXT_GRAY)
+    c.setFont('Helvetica', 7)
+    c.drawString(MARGIN_H, fy - 7, f'Proxim Admin  •  {ref_doc}  •  Confidentiel')
+    c.setFillColor(_DARK_BLUE)
+    c.setFont('Helvetica-Bold', 7.5)
+    c.drawCentredString(W / 2, fy - 7, f'Page {doc.page}')
+    c.setFillColor(_TEXT_GRAY)
+    c.setFont('Helvetica', 7)
+    c.drawRightString(W - MARGIN_H, fy - 7, f'Genere le {generated}')
+
+    c.restoreState()
+
+
 @admin_required
 def exporter_user_pdf(request, user_id):
-    """Génère un PDF avec toutes les infos de l'utilisateur via ReportLab."""
+    """Génère un PDF administratif premium avec toutes les infos de l'utilisateur."""
     user = get_object_or_404(User, id=user_id)
     profil = None
     commandes = []
@@ -409,14 +499,16 @@ def exporter_user_pdf(request, user_id):
     if user.role == 'client':
         try:
             profil = user.client_profile
-            commandes = list(Order.objects.filter(client=profil).select_related('service').order_by('-date_commande')[:20])
+            commandes = list(Order.objects.filter(client=profil)
+                             .select_related('service').order_by('-date_commande')[:20])
             avis = list(Review.objects.filter(client=profil).order_by('-date')[:10])
         except Exception:
             pass
     elif user.role == 'prestataire':
         try:
             profil = user.prestatire_profile
-            commandes = list(Order.objects.filter(prestatire=profil).select_related('service').order_by('-date_commande')[:20])
+            commandes = list(Order.objects.filter(prestatire=profil)
+                             .select_related('service').order_by('-date_commande')[:20])
             avis = list(Review.objects.filter(prestatire=profil).order_by('-date')[:10])
         except Exception:
             pass
@@ -426,328 +518,285 @@ def exporter_user_pdf(request, user_id):
     except Exception:
         pass
 
-    # ── Couleurs Proxim ──────────────────────────────────────────────
-    DARK_BLUE  = colors.HexColor('#0D1B2A')
-    GOLD       = colors.HexColor('#F4A922')
-    LIGHT_GRAY = colors.HexColor('#F8F9FA')
-    MID_GRAY   = colors.HexColor('#EEEEEE')
-    TEXT_DARK  = colors.HexColor('#222222')
-    TEXT_GRAY  = colors.HexColor('#666666')
-    GREEN      = colors.HexColor('#10B981')
-    WHITE      = colors.white
+    now      = timezone.now()
+    now_str  = now.strftime('%d/%m/%Y a %H:%M')
+    gen_date = now.strftime('%d/%m/%Y')
+    ref_doc  = f'PRX-USR-{user.id:05d}'
 
-    # ── Styles ───────────────────────────────────────────────────────
-    styles = getSampleStyleSheet()
-
-    style_section_title = ParagraphStyle(
-        'SectionTitle',
-        fontName='Helvetica-Bold',
-        fontSize=9,
-        textColor=WHITE,
-        spaceAfter=0,
-        spaceBefore=0,
-        leftIndent=0,
-    )
-    style_label = ParagraphStyle(
-        'Label',
-        fontName='Helvetica',
-        fontSize=8,
-        textColor=TEXT_GRAY,
-        spaceAfter=1,
-    )
-    style_value = ParagraphStyle(
-        'Value',
-        fontName='Helvetica-Bold',
-        fontSize=11,
-        textColor=TEXT_DARK,
-        spaceAfter=0,
-    )
-    style_value_green = ParagraphStyle(
-        'ValueGreen',
-        fontName='Helvetica-Bold',
-        fontSize=14,
-        textColor=GREEN,
-        spaceAfter=0,
-    )
-    style_footer = ParagraphStyle(
-        'Footer',
-        fontName='Helvetica',
-        fontSize=8,
-        textColor=TEXT_GRAY,
-        alignment=TA_CENTER,
-    )
-    style_table_header = ParagraphStyle(
-        'TableHeader',
-        fontName='Helvetica-Bold',
-        fontSize=8,
-        textColor=WHITE,
-    )
-    style_table_cell = ParagraphStyle(
-        'TableCell',
-        fontName='Helvetica',
-        fontSize=8,
-        textColor=TEXT_DARK,
-    )
-
-    # ── Canvas callback pour header et footer de page ────────────────
-    now_str = timezone.now().strftime('%d/%m/%Y à %H:%M')
-
-    def on_first_page(c, doc):
-        _draw_page_chrome(c, doc, now_str, DARK_BLUE, GOLD, WHITE, TEXT_GRAY, is_first=True)
-
-    def on_later_pages(c, doc):
-        _draw_page_chrome(c, doc, now_str, DARK_BLUE, GOLD, WHITE, TEXT_GRAY, is_first=False)
-
-    # ── Construction du document ─────────────────────────────────────
-    buffer = BytesIO()
     PAGE_W, PAGE_H = A4
-    MARGIN = 20 * mm
+    MARGIN_H   = 18 * mm
+    CONTENT_W  = PAGE_W - 2 * MARGIN_H
 
+    # ── Styles ──────────────────────────────────────────────────────────────
+    ST = {
+        'main_title': ParagraphStyle('MT', fontName='Helvetica-Bold', fontSize=16,
+                                     textColor=_DARK_BLUE, spaceAfter=0),
+        'id_right':   ParagraphStyle('IR', fontName='Helvetica', fontSize=10,
+                                     textColor=_TEXT_GRAY, alignment=TA_RIGHT, spaceAfter=0),
+        'section':    ParagraphStyle('SEC', fontName='Helvetica-Bold', fontSize=8,
+                                     textColor=_WHITE, spaceAfter=0),
+        'label':      ParagraphStyle('LBL', fontName='Helvetica', fontSize=7.5,
+                                     textColor=_TEXT_GRAY, spaceAfter=1),
+        'value':      ParagraphStyle('VAL', fontName='Helvetica-Bold', fontSize=10.5,
+                                     textColor=_TEXT_DARK, spaceAfter=0, leading=13),
+        'value_green':ParagraphStyle('VGN', fontName='Helvetica-Bold', fontSize=14,
+                                     textColor=_GREEN, spaceAfter=0),
+        'footer_note':ParagraphStyle('FN', fontName='Helvetica-Oblique', fontSize=7.5,
+                                     textColor=_TEXT_GRAY, leading=10),
+        'th':         ParagraphStyle('TH', fontName='Helvetica-Bold', fontSize=8,
+                                     textColor=_WHITE),
+        'td':         ParagraphStyle('TD', fontName='Helvetica', fontSize=8,
+                                     textColor=_TEXT_DARK, leading=11),
+    }
+
+    # ── Helpers locaux ───────────────────────────────────────────────────────
+    def section_header(title):
+        t = Table([[Paragraph(title.upper(), ST['section'])]], colWidths=[CONTENT_W])
+        t.setStyle(TableStyle([
+            ('BACKGROUND',    (0,0),(-1,-1), _DARK_BLUE),
+            ('LEFTPADDING',   (0,0),(-1,-1), 10),
+            ('RIGHTPADDING',  (0,0),(-1,-1), 10),
+            ('TOPPADDING',    (0,0),(-1,-1), 7),
+            ('BOTTOMPADDING', (0,0),(-1,-1), 7),
+            ('LINEBELOW',     (0,0),(-1,-1), 2, _GOLD),
+        ]))
+        return t
+
+    def info_grid(items, cols=2):
+        cell_w = (CONTENT_W - (cols - 1) * 4) / cols
+        rows = []
+        for i in range(0, len(items), cols):
+            row = []
+            for label, value in items[i:i+cols]:
+                cell = Table(
+                    [[Paragraph(label, ST['label'])],
+                     [Paragraph(str(value), ST['value'])]],
+                    colWidths=[cell_w],
+                )
+                cell.setStyle(TableStyle([
+                    ('BACKGROUND',    (0,0),(-1,-1), _LIGHT_GRAY),
+                    ('LEFTPADDING',   (0,0),(-1,-1), 10),
+                    ('RIGHTPADDING',  (0,0),(-1,-1), 10),
+                    ('TOPPADDING',    (0,0),(-1,-1), 8),
+                    ('BOTTOMPADDING', (0,0),(-1,-1), 8),
+                    ('LINEBELOW',     (0,0),(-1,-1), 1.5, _GOLD),
+                ]))
+                row.append(cell)
+            while len(row) < cols:
+                row.append('')
+            rows.append(row)
+        t = Table(rows, colWidths=[cell_w] * cols, hAlign='LEFT')
+        t.setStyle(TableStyle([
+            ('VALIGN',        (0,0),(-1,-1), 'TOP'),
+            ('LEFTPADDING',   (0,0),(-1,-1), 2),
+            ('RIGHTPADDING',  (0,0),(-1,-1), 2),
+            ('TOPPADDING',    (0,0),(-1,-1), 2),
+            ('BOTTOMPADDING', (0,0),(-1,-1), 2),
+        ]))
+        return t
+
+    def data_table(headers, rows_data, col_ratios):
+        col_widths = [CONTENT_W * r for r in col_ratios]
+        data = [[Paragraph(h, ST['th']) for h in headers]]
+        for row in rows_data:
+            data.append([Paragraph(str(c), ST['td']) for c in row])
+        t = Table(data, colWidths=col_widths, repeatRows=1)
+        t.setStyle(TableStyle([
+            ('BACKGROUND',     (0,0),(-1,0),  _DARK_BLUE),
+            ('LINEBELOW',      (0,0),(-1,0),  2, _GOLD),
+            ('ROWBACKGROUNDS', (0,1),(-1,-1), [_WHITE, _LIGHT_GRAY]),
+            ('GRID',           (0,0),(-1,-1), 0.3, _MID_GRAY),
+            ('LEFTPADDING',    (0,0),(-1,-1), 7),
+            ('RIGHTPADDING',   (0,0),(-1,-1), 7),
+            ('TOPPADDING',     (0,0),(-1,-1), 5),
+            ('BOTTOMPADDING',  (0,0),(-1,-1), 5),
+            ('VALIGN',         (0,0),(-1,-1), 'MIDDLE'),
+        ]))
+        return t
+
+    # ── Construction du story ────────────────────────────────────────────────
+    buffer = BytesIO()
     doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        leftMargin=MARGIN,
-        rightMargin=MARGIN,
-        topMargin=52 * mm,   # espace pour le header graphique
-        bottomMargin=22 * mm,
-        title=f"Fiche Utilisateur #{user.id}",
-        author="Proxim Admin",
+        buffer, pagesize=A4,
+        leftMargin=MARGIN_H, rightMargin=MARGIN_H,
+        topMargin=48 * mm, bottomMargin=24 * mm,
+        title=f'Fiche Utilisateur — {ref_doc}',
+        author='Proxim Admin',
+        subject='Fiche administrative utilisateur',
     )
 
     story = []
 
-    # ─── Titre principal ─────────────────────────────────────────────
-    story.append(Paragraph(
-        f'<font color="#0D1B2A"><b>Fiche Utilisateur</b></font>'
-        f' <font color="#F4A922">#{user.id}</font>',
-        ParagraphStyle('MainTitle', fontName='Helvetica-Bold', fontSize=18,
-                       textColor=DARK_BLUE, spaceAfter=4)
-    ))
-    story.append(HRFlowable(width='100%', thickness=3, color=GOLD, spaceAfter=14))
+    # Titre + ligne décorative
+    title_row = Table(
+        [[
+            Paragraph(f'<b>FICHE UTILISATEUR</b>', ST['main_title']),
+            Paragraph(f'Identifiant : <b><font color="#F4A922">#{user.id}</font></b>',
+                      ST['id_right']),
+        ]],
+        colWidths=[CONTENT_W * 0.6, CONTENT_W * 0.4],
+    )
+    title_row.setStyle(TableStyle([
+        ('VALIGN',        (0,0),(-1,-1), 'BOTTOM'),
+        ('LEFTPADDING',   (0,0),(-1,-1), 0),
+        ('RIGHTPADDING',  (0,0),(-1,-1), 0),
+        ('TOPPADDING',    (0,0),(-1,-1), 0),
+        ('BOTTOMPADDING', (0,0),(-1,-1), 0),
+    ]))
+    story.append(title_row)
+    story.append(Spacer(1, 3))
+    deco = Table([['', '']], colWidths=[4, CONTENT_W - 4])
+    deco.setStyle(TableStyle([
+        ('BACKGROUND',    (0,0),(0,0), _GOLD),
+        ('BACKGROUND',    (1,0),(1,0), _MID_GRAY),
+        ('TOPPADDING',    (0,0),(-1,-1), 0),
+        ('BOTTOMPADDING', (0,0),(-1,-1), 0),
+        ('LEFTPADDING',   (0,0),(-1,-1), 0),
+        ('RIGHTPADDING',  (0,0),(-1,-1), 0),
+        ('ROWHEIGHT',     (0,0),(-1,-1), 3),
+    ]))
+    story.append(deco)
+    story.append(Spacer(1, 12))
 
-    # ─── Helper : section header ─────────────────────────────────────
-    def section_header(title):
-        tbl = Table([[Paragraph(title.upper(), style_section_title)]],
-                    colWidths=[PAGE_W - 2 * MARGIN])
-        tbl.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), DARK_BLUE),
-            ('LEFTPADDING',  (0, 0), (-1, -1), 10),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-            ('TOPPADDING',   (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING',(0, 0), (-1, -1), 6),
-            ('ROUNDEDCORNERS', [4, 4, 4, 4]),
-        ]))
-        return tbl
+    # ── Section : Informations générales ────────────────────────────────────
+    story.append(KeepTogether([
+        section_header('Informations generales'),
+        Spacer(1, 6),
+        info_grid([
+            ('Email',              user.email),
+            ('Role',               user.role.upper()),
+            ('Telephone',          user.phone or '—'),
+            ("Date d'inscription", user.date_joined.strftime('%d/%m/%Y')),
+            ('Email verifie',      'Oui' if user.is_email_verified else 'Non'),
+            ('Compte actif',       'Oui' if user.is_active else 'Non'),
+        ]),
+        Spacer(1, 12),
+    ]))
 
-    # ─── Helper : grille info 2 colonnes ─────────────────────────────
-    def info_grid(items):
-        """items = [(label, value), ...]"""
-        rows = []
-        for i in range(0, len(items), 2):
-            row = []
-            for label, value in items[i:i+2]:
-                cell = Table(
-                    [[Paragraph(label, style_label)],
-                     [Paragraph(str(value), style_value)]],
-                    colWidths=[(PAGE_W - 2 * MARGIN) / 2 - 6],
-                )
-                cell.setStyle(TableStyle([
-                    ('BACKGROUND',   (0, 0), (-1, -1), LIGHT_GRAY),
-                    ('ROUNDEDCORNERS', [4, 4, 4, 4]),
-                    ('LEFTPADDING',  (0, 0), (-1, -1), 10),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-                    ('TOPPADDING',   (0, 0), (-1, -1), 6),
-                    ('BOTTOMPADDING',(0, 0), (-1, -1), 6),
-                ]))
-                row.append(cell)
-            if len(row) == 1:
-                row.append('')  # cellule vide si nombre impair
-            rows.append(row)
-
-        tbl = Table(rows, colWidths=[(PAGE_W - 2 * MARGIN) / 2 - 3] * 2,
-                    hAlign='LEFT')
-        tbl.setStyle(TableStyle([
-            ('VALIGN',       (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING',  (0, 0), (-1, -1), 3),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
-            ('TOPPADDING',   (0, 0), (-1, -1), 3),
-            ('BOTTOMPADDING',(0, 0), (-1, -1), 3),
-        ]))
-        return tbl
-
-    # ─── Section : Informations générales ────────────────────────────
-    story.append(section_header('Informations générales'))
-    story.append(Spacer(1, 6))
-
-    gen_items = [
-        ('Email',          user.email),
-        ('Rôle',           user.role.upper()),
-        ('Téléphone',      user.phone or '—'),
-        ('Inscription',    user.date_joined.strftime('%d/%m/%Y')),
-        ('Email vérifié',  'Oui' if user.is_email_verified else 'Non'),
-        ('Compte actif',   'Oui' if user.is_active else 'Non'),
-    ]
-    story.append(info_grid(gen_items))
-    story.append(Spacer(1, 10))
-
-    # ─── Section : Profil ────────────────────────────────────────────
+    # ── Section : Profil ────────────────────────────────────────────────────
     if profil:
         nom_complet = f"{getattr(profil, 'prenom', '')} {getattr(profil, 'nom', '')}".strip() or '—'
         adresse = getattr(profil, 'adresse', '') or '—'
-
-        story.append(section_header('Profil'))
-        story.append(Spacer(1, 6))
-
         profil_items = [
             ('Nom complet', nom_complet),
             ('Adresse',     adresse),
         ]
         if user.role == 'prestataire':
             bio = profil.bio or '—'
-            bio_short = (bio[:80] + '…') if len(bio) > 80 else bio
             profil_items += [
                 ('Niveau',       profil.niveau.upper()),
                 ('Note moyenne', f'{profil.note_moyenne}/5  ({profil.nombre_avis} avis)'),
-                ('KYC Vérifié',  'Oui' if profil.is_verified else 'Non'),
-                ('Bio',          bio_short),
+                ('KYC Verifie',  'Oui' if profil.is_verified else 'Non'),
+                ('Bio',          (bio[:80] + '...') if len(bio) > 80 else bio),
             ]
-        story.append(info_grid(profil_items))
-        story.append(Spacer(1, 10))
+        story.append(KeepTogether([
+            section_header('Profil'),
+            Spacer(1, 6),
+            info_grid(profil_items),
+            Spacer(1, 12),
+        ]))
 
-    # ─── Section : Portefeuille ───────────────────────────────────────
+    # ── Section : Portefeuille ───────────────────────────────────────────────
     if wallet:
         story.append(section_header('Portefeuille'))
         story.append(Spacer(1, 6))
-
-        wallet_cell = Table(
-            [[Paragraph('Solde actuel', style_label)],
-             [Paragraph(f'{wallet.solde} {wallet.devise}', style_value_green)]],
-            colWidths=[PAGE_W - 2 * MARGIN],
+        w_cell_w = (CONTENT_W / 2) - 2
+        w_tbl = Table(
+            [[
+                Table([[Paragraph('Solde actuel', ST['label'])],
+                       [Paragraph(f'{wallet.solde} {wallet.devise}', ST['value_green'])]],
+                      colWidths=[w_cell_w]),
+                Table([[Paragraph('Devise', ST['label'])],
+                       [Paragraph(str(wallet.devise), ST['value'])]],
+                      colWidths=[w_cell_w]),
+            ]],
+            colWidths=[w_cell_w + 2] * 2,
         )
-        wallet_cell.setStyle(TableStyle([
-            ('BACKGROUND',   (0, 0), (-1, -1), LIGHT_GRAY),
-            ('LEFTPADDING',  (0, 0), (-1, -1), 14),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 14),
-            ('TOPPADDING',   (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING',(0, 0), (-1, -1), 10),
+        w_tbl.setStyle(TableStyle([
+            ('BACKGROUND',    (0,0),(-1,-1), _LIGHT_GRAY),
+            ('LINEBELOW',     (0,0),(-1,-1), 1.5, _GOLD),
+            ('LEFTPADDING',   (0,0),(-1,-1), 10),
+            ('RIGHTPADDING',  (0,0),(-1,-1), 10),
+            ('TOPPADDING',    (0,0),(-1,-1), 10),
+            ('BOTTOMPADDING', (0,0),(-1,-1), 10),
+            ('VALIGN',        (0,0),(-1,-1), 'TOP'),
         ]))
-        story.append(wallet_cell)
-        story.append(Spacer(1, 10))
+        story.append(w_tbl)
+        story.append(Spacer(1, 12))
 
-    # ─── Section : Commandes ─────────────────────────────────────────
+    # ── Section : Commandes ──────────────────────────────────────────────────
     if commandes:
-        story.append(section_header(f'Historique commandes ({len(commandes)})'))
-        story.append(Spacer(1, 6))
-
-        headers = ['#', 'Service', 'Statut', 'Prix', 'Date']
-        data = [[Paragraph(h, style_table_header) for h in headers]]
-        for cmd in commandes:
-            data.append([
-                Paragraph(f'#{cmd.id}', style_table_cell),
-                Paragraph(cmd.service.titre[:35], style_table_cell),
-                Paragraph(cmd.statut, style_table_cell),
-                Paragraph(str(cmd.prix_final or cmd.prix_propose or '—'), style_table_cell),
-                Paragraph(cmd.date_commande.strftime('%d/%m/%Y'), style_table_cell),
-            ])
-
-        col_w = PAGE_W - 2 * MARGIN
-        cmd_tbl = Table(data, colWidths=[col_w * r for r in [.08, .38, .20, .17, .17]])
-        cmd_tbl.setStyle(TableStyle([
-            ('BACKGROUND',   (0, 0), (-1, 0),  DARK_BLUE),
-            ('TEXTCOLOR',    (0, 0), (-1, 0),  WHITE),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, LIGHT_GRAY]),
-            ('GRID',         (0, 0), (-1, -1), 0.4, MID_GRAY),
-            ('LEFTPADDING',  (0, 0), (-1, -1), 7),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 7),
-            ('TOPPADDING',   (0, 0), (-1, -1), 5),
-            ('BOTTOMPADDING',(0, 0), (-1, -1), 5),
-            ('VALIGN',       (0, 0), (-1, -1), 'MIDDLE'),
-            ('LINEBELOW',    (0, 0), (-1, 0),  1.5, GOLD),
+        cmd_rows = [
+            [f'#{cmd.id}',
+             cmd.service.titre[:38],
+             cmd.statut,
+             str(cmd.prix_final or cmd.prix_propose or '—'),
+             cmd.date_commande.strftime('%d/%m/%Y')]
+            for cmd in commandes
+        ]
+        story.append(KeepTogether([
+            section_header(f'Historique commandes ({len(commandes)})'),
+            Spacer(1, 6),
+            data_table(
+                ['N°', 'Service', 'Statut', 'Prix final', 'Date'],
+                cmd_rows,
+                [0.08, 0.42, 0.18, 0.16, 0.16],
+            ),
+            Spacer(1, 12),
         ]))
-        story.append(cmd_tbl)
-        story.append(Spacer(1, 10))
 
-    # ─── Section : Avis ──────────────────────────────────────────────
+    # ── Section : Avis ──────────────────────────────────────────────────────
     if avis:
         note_moy = sum(a.note for a in avis) / len(avis)
-        story.append(section_header(f'Avis ({len(avis)})  —  Moyenne : {note_moy:.1f} / 5'))
-        story.append(Spacer(1, 6))
-
-        headers = ['Note', 'Commentaire', 'Date']
-        data = [[Paragraph(h, style_table_header) for h in headers]]
-        for a in avis:
-            comment = a.commentaire or '—'
-            comment_short = (comment[:65] + '…') if len(comment) > 65 else comment
-            data.append([
-                Paragraph('★' * a.note + '☆' * (5 - a.note), style_table_cell),
-                Paragraph(comment_short, style_table_cell),
-                Paragraph(a.date.strftime('%d/%m/%Y'), style_table_cell),
-            ])
-
-        col_w = PAGE_W - 2 * MARGIN
-        avis_tbl = Table(data, colWidths=[col_w * r for r in [.16, .64, .20]])
-        avis_tbl.setStyle(TableStyle([
-            ('BACKGROUND',   (0, 0), (-1, 0),  DARK_BLUE),
-            ('TEXTCOLOR',    (0, 0), (-1, 0),  WHITE),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, LIGHT_GRAY]),
-            ('GRID',         (0, 0), (-1, -1), 0.4, MID_GRAY),
-            ('LEFTPADDING',  (0, 0), (-1, -1), 7),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 7),
-            ('TOPPADDING',   (0, 0), (-1, -1), 5),
-            ('BOTTOMPADDING',(0, 0), (-1, -1), 5),
-            ('VALIGN',       (0, 0), (-1, -1), 'MIDDLE'),
-            ('LINEBELOW',    (0, 0), (-1, 0),  1.5, GOLD),
+        avis_rows = [
+            ['★' * a.note + '☆' * (5 - a.note),
+             (a.commentaire[:65] + '...') if a.commentaire and len(a.commentaire) > 65
+             else (a.commentaire or '—'),
+             a.date.strftime('%d/%m/%Y')]
+            for a in avis
+        ]
+        story.append(KeepTogether([
+            section_header(f'Avis clients ({len(avis)})  —  Moyenne : {note_moy:.1f} / 5'),
+            Spacer(1, 6),
+            data_table(
+                ['Note', 'Commentaire', 'Date'],
+                avis_rows,
+                [0.14, 0.68, 0.18],
+            ),
+            Spacer(1, 12),
         ]))
-        story.append(avis_tbl)
-        story.append(Spacer(1, 10))
 
-    # ─── Footer inline ────────────────────────────────────────────────
-    story.append(HRFlowable(width='100%', thickness=0.5, color=MID_GRAY, spaceBefore=10, spaceAfter=6))
-    story.append(Paragraph(
-        f'Document généré automatiquement par Proxim Admin • '
-        f'{timezone.now().strftime("%d/%m/%Y %H:%M")} • Confidentiel',
-        style_footer
-    ))
+    # ── Note de confidentialité ──────────────────────────────────────────────
+    note_tbl = Table(
+        [[Paragraph(
+            '<i>Ce document est genere automatiquement par le systeme Proxim Admin. '
+            'Il est strictement confidentiel et destine uniquement a l\'usage interne '
+            'des administrateurs habilites. Toute reproduction ou diffusion non autorisee '
+            'est interdite conformement aux conditions generales d\'utilisation.</i>',
+            ST['footer_note']
+        )]],
+        colWidths=[CONTENT_W],
+    )
+    note_tbl.setStyle(TableStyle([
+        ('BACKGROUND',    (0,0),(-1,-1), _GOLD_LIGHT),
+        ('LEFTPADDING',   (0,0),(-1,-1), 12),
+        ('RIGHTPADDING',  (0,0),(-1,-1), 12),
+        ('TOPPADDING',    (0,0),(-1,-1), 8),
+        ('BOTTOMPADDING', (0,0),(-1,-1), 8),
+        ('LINEBEFORE',    (0,0),(0,-1),  3, _GOLD),
+    ]))
+    story.append(note_tbl)
 
-    doc.build(story, onFirstPage=on_first_page, onLaterPages=on_later_pages)
+    # ── Build ────────────────────────────────────────────────────────────────
+    cb = lambda c, d: _proxim_page_chrome(c, d, ref_doc, now_str, gen_date)
+    doc.build(story, onFirstPage=cb, onLaterPages=cb)
 
     buffer.seek(0)
     response = HttpResponse(buffer.read(), content_type='application/pdf')
     response['Content-Disposition'] = (
-        f'attachment; filename="user_{user_id}_{user.email.split("@")[0]}.pdf"'
+        f'attachment; filename="{ref_doc}_{user.email.split("@")[0]}.pdf"'
     )
     return response
-
-
-# ── Fonction utilitaire dessin page (header graphique) ───────────────────────
-def _draw_page_chrome(c, doc, now_str, DARK_BLUE, GOLD, WHITE, TEXT_GRAY, is_first):
-    PAGE_W, PAGE_H = A4
-    # Bande header
-    c.saveState()
-    c.setFillColor(DARK_BLUE)
-    c.rect(0, PAGE_H - 30 * mm, PAGE_W, 30 * mm, fill=1, stroke=0)
-    # Accent or sous le header
-    c.setFillColor(GOLD)
-    c.rect(0, PAGE_H - 30 * mm - 2.5, PAGE_W, 2.5, fill=1, stroke=0)
-
-    # Logo texte "Proxim."
-    c.setFillColor(WHITE)
-    c.setFont('Helvetica-Bold', 20)
-    c.drawString(20 * mm, PAGE_H - 18 * mm, 'Proxim')
-    c.setFillColor(GOLD)
-    c.drawString(20 * mm + c.stringWidth('Proxim', 'Helvetica-Bold', 20), PAGE_H - 18 * mm, '.')
-
-    # Date à droite
-    c.setFillColor(WHITE)
-    c.setFont('Helvetica', 8)
-    date_text = f'Fiche utilisateur — Générée le {now_str}'
-    c.drawRightString(PAGE_W - 20 * mm, PAGE_H - 18 * mm, date_text)
-
-    # Numéro de page en bas
-    c.setFillColor(TEXT_GRAY)
-    c.setFont('Helvetica', 8)
-    c.drawCentredString(PAGE_W / 2, 10 * mm, f'Page {doc.page}')
-    c.restoreState()
 
 
 # ── Services ──────────────────────────────────────────────────
