@@ -1,11 +1,16 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.db.models import Count, Sum, Avg, Q
 from django.utils import timezone
 from datetime import timedelta, date
+from io import BytesIO
 from .decorators import admin_required
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import A4
 
 from django.contrib.auth import get_user_model
 from accounts.models import ClientProfile, PrestatireProfile, KYCDocument
@@ -17,7 +22,6 @@ from messaging.models import Conversation, Message
 from notifications.models import Notification
 from reports.models import Report
 from reviews.models import Review
-from reports.models import Report as FeedReport
 
 User = get_user_model()
 
@@ -43,6 +47,18 @@ def logout_view(request):
     return redirect('/admin-dashboard/login/')
 
 
+# ── Helpers contexte global ───────────────────────────────────
+
+def _global_ctx():
+    """Données communes à toutes les pages (badges sidebar)."""
+    return {
+        'kyc_en_attente': KYCDocument.objects.filter(statut='en_attente').count(),
+        'retraits_en_attente': Withdrawal.objects.filter(statut='EN_ATTENTE').count(),
+        'signalements_en_attente': Report.objects.filter(statut='EN_ATTENTE').count(),
+        'commandes_en_attente': Order.objects.filter(statut='EN_NEGOCIATION').count(),
+    }
+
+
 # ── Home ──────────────────────────────────────────────────────
 
 @admin_required
@@ -66,15 +82,13 @@ def dashboard_home(request):
     retraits_en_attente = Withdrawal.objects.filter(statut='EN_ATTENTE').count()
     signalements_en_attente = Report.objects.filter(statut='EN_ATTENTE').count()
     total_posts = Post.objects.count()
-    total_conversations = Conversation.objects.count()
     total_avis = Review.objects.count()
 
     dernieres_commandes = Order.objects.select_related('client', 'prestatire', 'service').order_by('-date_commande')[:8]
-    derniers_users = User.objects.order_by('-date_joined')[:6]
     top_services = Service.objects.annotate(nb_commandes=Count('commandes')).order_by('-nb_commandes')[:5]
     derniers_avis = Review.objects.select_related('client', 'prestatire').order_by('-date')[:5]
 
-    context = {
+    ctx = {
         'total_users': total_users, 'total_clients': total_clients,
         'total_prestataires': total_prestataires, 'nouveaux_ce_mois': nouveaux_ce_mois,
         'total_services': total_services, 'services_actifs': services_actifs,
@@ -83,13 +97,12 @@ def dashboard_home(request):
         'total_paiements': total_paiements, 'revenus_mois': revenus_mois,
         'kyc_en_attente': kyc_en_attente, 'retraits_en_attente': retraits_en_attente,
         'signalements_en_attente': signalements_en_attente,
-        'total_posts': total_posts, 'total_conversations': total_conversations,
-        'total_avis': total_avis,
-        'dernieres_commandes': dernieres_commandes, 'derniers_users': derniers_users,
+        'total_posts': total_posts, 'total_avis': total_avis,
+        'dernieres_commandes': dernieres_commandes,
         'top_services': top_services, 'derniers_avis': derniers_avis,
         'page': 'home',
     }
-    return render(request, 'admin_dashboard/home.html', context)
+    return render(request, 'admin_dashboard/home.html', ctx)
 
 
 # ── API Graphes ───────────────────────────────────────────────
@@ -110,12 +123,8 @@ def api_graphe_commandes(request):
     data, labels = [], []
     for i in range(11, -1, -1):
         mois = (today.replace(day=1) - timedelta(days=i * 30)).replace(day=1)
-        if mois.month < 12:
-            fin = mois.replace(month=mois.month + 1, day=1)
-        else:
-            fin = mois.replace(year=mois.year + 1, month=1, day=1)
-        count = Order.objects.filter(date_commande__date__gte=mois, date_commande__date__lt=fin).count()
-        data.append(count)
+        fin = mois.replace(month=mois.month % 12 + 1, day=1) if mois.month < 12 else mois.replace(year=mois.year + 1, month=1, day=1)
+        data.append(Order.objects.filter(date_commande__date__gte=mois, date_commande__date__lt=fin).count())
         labels.append(mois.strftime('%b %Y'))
     return JsonResponse({'labels': labels, 'data': data})
 
@@ -126,10 +135,7 @@ def api_graphe_revenus(request):
     data, labels = [], []
     for i in range(11, -1, -1):
         mois = (today.replace(day=1) - timedelta(days=i * 30)).replace(day=1)
-        if mois.month < 12:
-            fin = mois.replace(month=mois.month + 1, day=1)
-        else:
-            fin = mois.replace(year=mois.year + 1, month=1, day=1)
+        fin = mois.replace(month=mois.month % 12 + 1, day=1) if mois.month < 12 else mois.replace(year=mois.year + 1, month=1, day=1)
         rev = Payment.objects.filter(statut='SUCCES', date_paiement__date__gte=mois, date_paiement__date__lt=fin).aggregate(t=Sum('commission_plateforme'))['t'] or 0
         data.append(float(rev))
         labels.append(mois.strftime('%b %Y'))
@@ -143,9 +149,7 @@ def utilisateurs(request):
     role = request.GET.get('role', '')
     statut = request.GET.get('statut', '')
     q = request.GET.get('q', '')
-    users = User.objects.annotate(
-        nb_commandes=Count('client_profile__commandes', distinct=True)
-    ).order_by('-date_joined')
+    users = User.objects.order_by('-date_joined')
     if role:
         users = users.filter(role=role)
     if statut == 'actif':
@@ -156,7 +160,6 @@ def utilisateurs(request):
         users = users.filter(is_email_verified=False)
     if q:
         users = users.filter(Q(email__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q))
-
     stats = {
         'total': User.objects.count(),
         'clients': User.objects.filter(role='client').count(),
@@ -164,8 +167,9 @@ def utilisateurs(request):
         'actifs': User.objects.filter(is_active=True).count(),
         'non_verifies': User.objects.filter(is_email_verified=False).count(),
     }
-    context = {'users': users, 'total': users.count(), 'role': role, 'statut': statut, 'q': q, 'stats': stats, 'page': 'utilisateurs'}
-    return render(request, 'admin_dashboard/utilisateurs.html', context)
+    ctx = {'users': users, 'total': users.count(), 'role': role, 'statut': statut, 'q': q, 'stats': stats, 'page': 'utilisateurs'}
+    ctx.update(_global_ctx())
+    return render(request, 'admin_dashboard/utilisateurs.html', ctx)
 
 
 @admin_required
@@ -206,6 +210,54 @@ def changer_role_user(request, user_id):
 
 
 @admin_required
+def changer_niveau_user(request, user_id):
+    """Changer le niveau d'un prestataire manuellement."""
+    if request.method == 'POST':
+        user = get_object_or_404(User, id=user_id)
+        niveau = request.POST.get('niveau')
+        if niveau not in ['bronze', 'argent', 'or', 'expert']:
+            return JsonResponse({'error': 'Niveau invalide'}, status=400)
+        try:
+            profil = user.prestatire_profile
+            profil.niveau = niveau
+            profil.save()
+            return JsonResponse({'success': True, 'message': f'Niveau changé en {niveau.upper()}'})
+        except Exception:
+            return JsonResponse({'error': 'Profil prestataire introuvable'}, status=404)
+    return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
+
+
+@admin_required
+def modifier_profil_user(request, user_id):
+    """Modifier les informations du profil d'un utilisateur."""
+    if request.method == 'POST':
+        user = get_object_or_404(User, id=user_id)
+        try:
+            if user.role == 'client':
+                profil = user.client_profile
+                profil.nom = request.POST.get('nom', profil.nom)
+                profil.prenom = request.POST.get('prenom', profil.prenom)
+                profil.adresse = request.POST.get('adresse', profil.adresse)
+                profil.save()
+            elif user.role == 'prestataire':
+                profil = user.prestatire_profile
+                profil.nom = request.POST.get('nom', profil.nom)
+                profil.prenom = request.POST.get('prenom', profil.prenom)
+                profil.adresse = request.POST.get('adresse', profil.adresse)
+                profil.bio = request.POST.get('bio', profil.bio)
+                profil.save()
+            # Téléphone au niveau User
+            phone = request.POST.get('phone', '').strip()
+            if phone:
+                user.phone = phone
+                user.save()
+            return JsonResponse({'success': True, 'message': 'Profil modifié avec succès'})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
+
+
+@admin_required
 def supprimer_user(request, user_id):
     if request.method == 'POST':
         user = get_object_or_404(User, id=user_id)
@@ -224,10 +276,7 @@ def envoyer_notification_user(request, user_id):
         contenu = request.POST.get('contenu', '').strip()
         if not titre or not contenu:
             return JsonResponse({'error': 'Titre et contenu obligatoires'}, status=400)
-        Notification.objects.create(
-            destinataire=user, type='NOUVEAU_MESSAGE',
-            titre=titre, contenu=contenu
-        )
+        Notification.objects.create(destinataire=user, type='NOUVEAU_MESSAGE', titre=titre, contenu=contenu)
         return JsonResponse({'success': True, 'message': f'Notification envoyée à {user.email}'})
     return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
 
@@ -235,45 +284,256 @@ def envoyer_notification_user(request, user_id):
 @admin_required
 def detail_user(request, user_id):
     user = get_object_or_404(User, id=user_id)
+
     profil = None
     commandes = []
     kycs = []
     avis = []
     services = []
     posts = []
+    niveaux = ["bronze", "argent", "or", "expert"]
+    tabs = [
+        ("commandes", "Commandes", "shopping-cart"),
+        ("services", "Services", "briefcase"),
+        ("kycs", "KYC", "id-card"),
+        ("avis", "Avis", "star"),
+        ("posts", "Posts", "photo-video"),
+        ("signalements", "Signalements", "flag"),
+        ("notifications", "Notifications", "bell"),
+    ]
+
+    # Signalements & notifications
     signalements_recus = Report.objects.filter(cible_user=user).order_by('-date')[:10]
     notifications = Notification.objects.filter(destinataire=user).order_by('-date')[:10]
+
+    # Gestion selon le rôle
+    if user.role == 'client':
+        try:
+            profil = user.client_profile
+
+            commandes = (
+                Order.objects
+                .filter(client=profil)
+                .select_related('service', 'prestatire')
+                .order_by('-date_commande')[:10]
+            )
+
+            avis = (
+                Review.objects
+                .filter(client=profil)
+                .select_related('prestatire')
+                .order_by('-date')[:5]
+            )
+
+        except Exception:
+            pass
+
+    elif user.role == 'prestataire':
+        try:
+            profil = user.prestatire_profile
+
+            commandes = (
+                Order.objects
+                .filter(prestatire=profil)
+                .select_related('service', 'client')
+                .order_by('-date_commande')[:10]
+            )
+
+            kycs = KYCDocument.objects.filter(prestatire=profil)
+
+            avis = (
+                Review.objects
+                .filter(prestatire=profil)
+                .select_related('client')
+                .order_by('-date')[:5]
+            )
+
+            services = (
+                Service.objects
+                .filter(prestatire=profil)
+                .annotate(nb_cmd=Count('commandes'))[:8]
+            )
+
+            posts = (
+                Post.objects
+                .filter(prestatire=profil)
+                .order_by('-date_publication')[:5]
+            )
+
+        except Exception:
+            pass
+
+    # Wallet
+    try:
+        wallet = Wallet.objects.get(user=user)
+        transactions = wallet.transactions.order_by('-date')[:10]
+    except Exception:
+        wallet = None
+        transactions = []
+
+    # Contexte
+    ctx = {
+        'u': user,
+        'profil': profil,
+        'commandes': commandes,
+        'kycs': kycs,
+        'avis': avis,
+        'services': services,
+        'posts': posts,
+        'wallet': wallet,
+        'transactions': transactions,
+        'signalements_recus': signalements_recus,
+        'notifications': notifications,
+        'niveaux': niveaux,
+        'tabs': tabs,
+        'page': 'utilisateurs',
+    }
+
+    ctx.update(_global_ctx())
+
+    return render(request, 'admin_dashboard/detail_user.html', ctx)
+
+@admin_required
+def exporter_user_pdf(request, user_id):
+    user = get_object_or_404(User, id=user_id)
+
+    profil = None
+    commandes = []
+    avis = []
+    wallet = None
 
     if user.role == 'client':
         try:
             profil = user.client_profile
-            commandes = Order.objects.filter(client=profil).select_related('service', 'prestatire').order_by('-date_commande')[:10]
-            avis = Review.objects.filter(client=profil).select_related('prestatire').order_by('-date')[:5]
-        except Exception:
+            commandes = list(Order.objects.filter(client=profil)[:20])
+            avis = list(Review.objects.filter(client=profil)[:10])
+        except:
             pass
+
     elif user.role == 'prestataire':
         try:
             profil = user.prestatire_profile
-            commandes = Order.objects.filter(prestatire=profil).select_related('service', 'client').order_by('-date_commande')[:10]
-            kycs = KYCDocument.objects.filter(prestatire=profil)
-            avis = Review.objects.filter(prestatire=profil).select_related('client').order_by('-date')[:5]
-            services = Service.objects.filter(prestatire=profil).annotate(nb_cmd=Count('commandes'))[:8]
-            posts = Post.objects.filter(prestatire=profil).order_by('-date_publication')[:5]
-        except Exception:
+            commandes = list(Order.objects.filter(prestatire=profil)[:20])
+            avis = list(Review.objects.filter(prestatire=profil)[:10])
+        except:
             pass
 
     try:
         wallet = Wallet.objects.get(user=user)
-    except Exception:
-        wallet = None
+    except:
+        pass
 
-    context = {
-        'u': user, 'profil': profil, 'commandes': commandes,
-        'kycs': kycs, 'avis': avis, 'services': services, 'posts': posts,
-        'wallet': wallet, 'signalements_recus': signalements_recus,
-        'notifications': notifications, 'page': 'utilisateurs',
-    }
-    return render(request, 'admin_dashboard/detail_user.html', context)
+    buffer = BytesIO()
+
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    styles = getSampleStyleSheet()
+
+    elements = []
+
+    # 🟡 Titre
+    elements.append(Paragraph(f"<b>Fiche Utilisateur #{user.id}</b>", styles['Title']))
+    elements.append(Spacer(1, 10))
+
+    
+    elements.append(Paragraph("<b>Informations générales</b>", styles['Heading2']))
+
+    data = [
+        ["Email", user.email],
+        ["Rôle", user.role],
+        ["Téléphone", user.phone or "—"],
+        ["Inscription", user.date_joined.strftime('%d/%m/%Y')],
+        ["Email vérifié", "Oui" if user.is_email_verified else "Non"],
+        ["Actif", "Oui" if user.is_active else "Non"],
+    ]
+
+    table = Table(data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+    ]))
+
+    elements.append(table)
+    elements.append(Spacer(1, 15))
+
+    # 🟢 Profil
+    if profil:
+        elements.append(Paragraph("<b>Profil</b>", styles['Heading2']))
+
+        nom = f"{getattr(profil, 'prenom', '')} {getattr(profil, 'nom', '')}"
+
+        data = [
+            ["Nom complet", nom],
+            ["Adresse", getattr(profil, 'adresse', '—')],
+        ]
+
+        if user.role == 'prestataire':
+            data += [
+                ["Niveau", profil.niveau],
+                ["Note", f"{profil.note_moyenne}/5"],
+                ["Vérifié", "Oui" if profil.is_verified else "Non"],
+            ]
+
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+        ]))
+
+        elements.append(table)
+        elements.append(Spacer(1, 15))
+
+    # 💰 Wallet
+    if wallet:
+        elements.append(Paragraph("<b>Portefeuille</b>", styles['Heading2']))
+        elements.append(Paragraph(f"Solde: {wallet.solde} {wallet.devise}", styles['Normal']))
+        elements.append(Spacer(1, 15))
+
+    # 📦 Commandes
+    if commandes:
+        elements.append(Paragraph("<b>Commandes</b>", styles['Heading2']))
+
+        data = [["ID", "Service", "Prix", "Date"]]
+
+        for cmd in commandes:
+            data.append([
+                cmd.id,
+                cmd.service.titre[:20],
+                str(cmd.prix_final or cmd.prix_propose),
+                cmd.date_commande.strftime('%d/%m/%Y')
+            ])
+
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+        ]))
+
+        elements.append(table)
+        elements.append(Spacer(1, 15))
+
+    # ⭐ Avis
+    if avis:
+        elements.append(Paragraph("<b>Avis</b>", styles['Heading2']))
+
+        data = [["Note", "Commentaire"]]
+
+        for a in avis:
+            data.append([
+                "⭐" * a.note,
+                a.commentaire[:50]
+            ])
+
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+        ]))
+
+        elements.append(table)
+
+    # 🧾 Build PDF
+    doc.build(elements)
+
+    buffer.seek(0)
+
+    return HttpResponse(buffer, content_type='application/pdf')
 
 
 # ── Services ──────────────────────────────────────────────────
@@ -293,25 +553,25 @@ def services(request):
     elif statut == 'inactif':
         svcs = svcs.filter(is_available=False)
     categories = Category.objects.filter(is_active=True)
-    context = {'services': svcs, 'categories': categories, 'total': svcs.count(), 'q': q, 'categorie_id': categorie_id, 'statut': statut, 'page': 'services'}
-    return render(request, 'admin_dashboard/services.html', context)
+    ctx = {'services': svcs, 'categories': categories, 'total': svcs.count(), 'q': q, 'categorie_id': categorie_id, 'statut': statut, 'page': 'services'}
+    ctx.update(_global_ctx())
+    return render(request, 'admin_dashboard/services.html', ctx)
 
 
 @admin_required
 def toggle_service(request, service_id):
     if request.method == 'POST':
-        service = get_object_or_404(Service, id=service_id)
-        service.is_available = not service.is_available
-        service.save()
-        return JsonResponse({'success': True, 'is_available': service.is_available, 'message': f'Service {"activé" if service.is_available else "désactivé"}'})
+        svc = get_object_or_404(Service, id=service_id)
+        svc.is_available = not svc.is_available
+        svc.save()
+        return JsonResponse({'success': True, 'is_available': svc.is_available, 'message': f'Service {"activé" if svc.is_available else "désactivé"}'})
     return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
 
 
 @admin_required
 def supprimer_service(request, service_id):
     if request.method == 'POST':
-        service = get_object_or_404(Service, id=service_id)
-        service.delete()
+        get_object_or_404(Service, id=service_id).delete()
         return JsonResponse({'success': True, 'message': 'Service supprimé'})
     return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
 
@@ -335,8 +595,9 @@ def commandes(request):
         'termine': Order.objects.filter(statut='TERMINE').count(),
         'annule': Order.objects.filter(statut='ANNULE').count(),
     }
-    context = {'commandes': cmds, 'stats': stats, 'statut': statut, 'q': q, 'page': 'commandes'}
-    return render(request, 'admin_dashboard/commandes.html', context)
+    ctx = {'commandes': cmds, 'stats': stats, 'statut': statut, 'q': q, 'page': 'commandes'}
+    ctx.update(_global_ctx())
+    return render(request, 'admin_dashboard/commandes.html', ctx)
 
 
 @admin_required
@@ -344,7 +605,6 @@ def detail_commande(request, commande_id):
     commande = get_object_or_404(Order.objects.select_related('client', 'prestatire', 'service'), id=commande_id)
     historique = commande.historique_statuts.all().order_by('date')
     negotiations = commande.negotiations.all().order_by('date')
-    conversations = commande.conversations.all().prefetch_related('messages')
     try:
         paiement = commande.payment
     except Exception:
@@ -353,8 +613,9 @@ def detail_commande(request, commande_id):
         review = commande.review
     except Exception:
         review = None
-    context = {'commande': commande, 'historique': historique, 'negotiations': negotiations, 'conversations': conversations, 'paiement': paiement, 'review': review, 'page': 'commandes'}
-    return render(request, 'admin_dashboard/detail_commande.html', context)
+    ctx = {'commande': commande, 'historique': historique, 'negotiations': negotiations, 'paiement': paiement, 'review': review, 'page': 'commandes'}
+    ctx.update(_global_ctx())
+    return render(request, 'admin_dashboard/detail_commande.html', ctx)
 
 
 # ── Paiements ─────────────────────────────────────────────────
@@ -370,8 +631,9 @@ def paiements(request):
         pays = pays.filter(methode=methode)
     total_succes = Payment.objects.filter(statut='SUCCES').aggregate(t=Sum('montant_total'))['t'] or 0
     commission_totale = Payment.objects.filter(statut='SUCCES').aggregate(t=Sum('commission_plateforme'))['t'] or 0
-    context = {'paiements': pays, 'total_succes': total_succes, 'commission_totale': commission_totale, 'statut': statut, 'methode': methode, 'page': 'paiements'}
-    return render(request, 'admin_dashboard/paiements.html', context)
+    ctx = {'paiements': pays, 'total_succes': total_succes, 'commission_totale': commission_totale, 'statut': statut, 'methode': methode, 'page': 'paiements'}
+    ctx.update(_global_ctx())
+    return render(request, 'admin_dashboard/paiements.html', ctx)
 
 
 # ── Retraits ──────────────────────────────────────────────────
@@ -383,8 +645,9 @@ def retraits(request):
     if statut:
         rets = rets.filter(statut=statut)
     total_en_attente = Withdrawal.objects.filter(statut='EN_ATTENTE').aggregate(t=Sum('montant'))['t'] or 0
-    context = {'retraits': rets, 'total_en_attente': total_en_attente, 'statut': statut, 'page': 'retraits'}
-    return render(request, 'admin_dashboard/retraits.html', context)
+    ctx = {'retraits': rets, 'total_en_attente': total_en_attente, 'statut': statut, 'page': 'retraits'}
+    ctx.update(_global_ctx())
+    return render(request, 'admin_dashboard/retraits.html', ctx)
 
 
 @admin_required
@@ -396,11 +659,9 @@ def traiter_retrait(request, retrait_id):
         retrait.date_traitement = timezone.now()
         retrait.save()
         msg = 'Retrait marqué comme traité' if action == 'traiter' else 'Retrait rejeté'
-        # Envoyer notification au prestataire
         try:
             Notification.objects.create(
-                destinataire=retrait.prestatire.user,
-                type='RETRAIT_TRAITE',
+                destinataire=retrait.prestatire.user, type='RETRAIT_TRAITE',
                 titre='Demande de retrait',
                 contenu=f'Votre demande de retrait de {retrait.montant} FCFA a été {"traitée" if action == "traiter" else "rejetée"}.',
             )
@@ -424,8 +685,9 @@ def kyc(request):
         'valide': KYCDocument.objects.filter(statut='valide').count(),
         'rejete': KYCDocument.objects.filter(statut='rejete').count(),
     }
-    context = {'documents': docs, 'stats': stats, 'statut': statut, 'page': 'kyc'}
-    return render(request, 'admin_dashboard/kyc.html', context)
+    ctx = {'documents': docs, 'stats': stats, 'statut': statut, 'page': 'kyc'}
+    ctx.update(_global_ctx())
+    return render(request, 'admin_dashboard/kyc.html', ctx)
 
 
 @admin_required
@@ -476,8 +738,9 @@ def rejeter_kyc(request, kyc_id):
 @admin_required
 def categories(request):
     cats = Category.objects.annotate(nb_services=Count('services')).order_by('nom')
-    context = {'categories': cats, 'total': cats.count(), 'page': 'categories'}
-    return render(request, 'admin_dashboard/categories.html', context)
+    ctx = {'categories': cats, 'total': cats.count(), 'page': 'categories'}
+    ctx.update(_global_ctx())
+    return render(request, 'admin_dashboard/categories.html', ctx)
 
 
 @admin_required
@@ -543,8 +806,9 @@ def signalements(request):
         'traite': Report.objects.filter(statut='TRAITE').count(),
         'rejete': Report.objects.filter(statut='REJETE').count(),
     }
-    context = {'signalements': sigs, 'stats': stats, 'statut': statut, 'raison': raison, 'page': 'signalements'}
-    return render(request, 'admin_dashboard/signalements.html', context)
+    ctx = {'signalements': sigs, 'stats': stats, 'statut': statut, 'raison': raison, 'page': 'signalements'}
+    ctx.update(_global_ctx())
+    return render(request, 'admin_dashboard/signalements.html', ctx)
 
 
 @admin_required
@@ -555,7 +819,7 @@ def traiter_signalement(request, sig_id):
         if action == 'traiter':
             sig.statut = 'TRAITE'
             sig.save()
-            return JsonResponse({'success': True, 'message': 'Signalement marqué comme traité'})
+            return JsonResponse({'success': True, 'message': 'Signalement traité'})
         elif action == 'rejeter':
             sig.statut = 'REJETE'
             sig.save()
@@ -579,25 +843,22 @@ def avis(request):
     if note_min:
         all_avis = all_avis.filter(note__lte=int(note_min))
     if q:
-        all_avis = all_avis.filter(
-            Q(client__nom__icontains=q) | Q(prestatire__nom__icontains=q) |
-            Q(commentaire__icontains=q)
-        )
+        all_avis = all_avis.filter(Q(client__nom__icontains=q) | Q(prestatire__nom__icontains=q) | Q(commentaire__icontains=q))
     stats = {
         'total': Review.objects.count(),
         'note_moy': Review.objects.aggregate(m=Avg('note'))['m'] or 0,
         'cinq': Review.objects.filter(note=5).count(),
         'un': Review.objects.filter(note=1).count(),
     }
-    context = {'avis': all_avis, 'stats': stats, 'note_min': note_min, 'q': q, 'page': 'avis'}
-    return render(request, 'admin_dashboard/avis.html', context)
+    ctx = {'avis': all_avis, 'stats': stats, 'note_min': note_min, 'q': q, 'page': 'avis'}
+    ctx.update(_global_ctx())
+    return render(request, 'admin_dashboard/avis.html', ctx)
 
 
 @admin_required
 def supprimer_avis(request, avis_id):
     if request.method == 'POST':
-        a = get_object_or_404(Review, id=avis_id)
-        a.delete()
+        get_object_or_404(Review, id=avis_id).delete()
         return JsonResponse({'success': True, 'message': 'Avis supprimé'})
     return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
 
@@ -618,8 +879,9 @@ def posts(request):
         all_posts = all_posts.filter(is_active=False)
     if q:
         all_posts = all_posts.filter(Q(contenu__icontains=q) | Q(prestatire__nom__icontains=q))
-    context = {'posts': all_posts, 'total': all_posts.count(), 'statut': statut, 'q': q, 'page': 'posts'}
-    return render(request, 'admin_dashboard/posts.html', context)
+    ctx = {'posts': all_posts, 'total': all_posts.count(), 'statut': statut, 'q': q, 'page': 'posts'}
+    ctx.update(_global_ctx())
+    return render(request, 'admin_dashboard/posts.html', ctx)
 
 
 @admin_required
@@ -628,15 +890,14 @@ def toggle_post(request, post_id):
         post = get_object_or_404(Post, id=post_id)
         post.is_active = not post.is_active
         post.save()
-        return JsonResponse({'success': True, 'is_active': post.is_active, 'message': f'Post {"activé" if post.is_active else "désactivé"}'})
+        return JsonResponse({'success': True, 'is_active': post.is_active, 'message': f'Post {"activé" if post.is_active else "masqué"}'})
     return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
 
 
 @admin_required
 def supprimer_post(request, post_id):
     if request.method == 'POST':
-        post = get_object_or_404(Post, id=post_id)
-        post.delete()
+        get_object_or_404(Post, id=post_id).delete()
         return JsonResponse({'success': True, 'message': 'Post supprimé'})
     return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
 
@@ -645,16 +906,168 @@ def supprimer_post(request, post_id):
 
 @admin_required
 def messagerie(request):
+    q = request.GET.get('q', '')
     convs = Conversation.objects.select_related('client', 'prestatire').annotate(
-        nb_messages=Count('messages')
+        nb_messages=Count('messages'),
+        nb_suspects=Count('messages', filter=Q(messages__is_deleted=False))
     ).order_by('-dernier_message_date')
+    if q:
+        convs = convs.filter(
+            Q(client__nom__icontains=q) | Q(client__prenom__icontains=q) |
+            Q(prestatire__nom__icontains=q) | Q(prestatire__prenom__icontains=q)
+        )
     total_messages = Message.objects.count()
     total_non_lus = Message.objects.filter(is_read=False).count()
-    context = {
+    # Messages signalés (is_deleted utilisé comme flag suspect)
+    messages_suspects = Message.objects.filter(is_deleted=True).select_related(
+        'conversation__client', 'conversation__prestatire', 'expediteur'
+    ).order_by('-date_envoi')[:20]
+    ctx = {
         'conversations': convs, 'total_messages': total_messages,
-        'total_non_lus': total_non_lus, 'page': 'messagerie'
+        'total_non_lus': total_non_lus, 'messages_suspects': messages_suspects,
+        'q': q, 'page': 'messagerie'
     }
-    return render(request, 'admin_dashboard/messagerie.html', context)
+    ctx.update(_global_ctx())
+    return render(request, 'admin_dashboard/messagerie.html', ctx)
+
+
+@admin_required
+def detail_conversation(request, conv_id):
+    conv = get_object_or_404(
+        Conversation.objects.select_related('client', 'prestatire'),
+        id=conv_id
+    )
+    messages_list = conv.messages.select_related('expediteur').order_by('date_envoi')
+    ctx = {'conv': conv, 'messages_list': messages_list, 'page': 'messagerie'}
+    ctx.update(_global_ctx())
+    return render(request, 'admin_dashboard/detail_conversation.html', ctx)
+
+
+@admin_required
+def signaler_message(request, conv_id):
+    """Marquer un message comme suspect (is_deleted=True utilisé comme flag)."""
+    if request.method == 'POST':
+        message_id = request.POST.get('message_id')
+        msg = get_object_or_404(Message, id=message_id, conversation_id=conv_id)
+        msg.is_deleted = True
+        msg.save()
+        # Créer un signalement automatique
+        try:
+            Report.objects.create(
+                reporter=request.user,
+                cible_user=msg.expediteur,
+                raison='CONTENU_INAPPROPRIE',
+                description=f'Message suspect signalé par l\'admin (ID message: {msg.id}). Contenu: {msg.contenu[:100]}',
+                statut='EN_ATTENTE',
+            )
+        except Exception:
+            pass
+        return JsonResponse({'success': True, 'message': 'Message signalé et signalement créé'})
+    return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
+
+
+@admin_required
+def ecrire_utilisateurs(request):
+    """Envoyer un message (notification) à tous ou certains utilisateurs."""
+    if request.method == 'POST':
+        titre = request.POST.get('titre', '').strip()
+        contenu = request.POST.get('contenu', '').strip()
+        cible = request.POST.get('cible', 'tous')
+        user_id = request.POST.get('user_id', '')
+        if not titre or not contenu:
+            return JsonResponse({'error': 'Titre et contenu obligatoires'}, status=400)
+        if user_id:
+            # Message individuel
+            user = get_object_or_404(User, id=user_id)
+            Notification.objects.create(destinataire=user, type='NOUVEAU_MESSAGE', titre=titre, contenu=contenu)
+            return JsonResponse({'success': True, 'message': f'Message envoyé à {user.email}'})
+        # Message groupé
+        users = User.objects.filter(is_active=True)
+        if cible == 'clients':
+            users = users.filter(role='client')
+        elif cible == 'prestataires':
+            users = users.filter(role='prestataire')
+        notifs = [Notification(destinataire=u, type='NOUVEAU_MESSAGE', titre=titre, contenu=contenu) for u in users]
+        Notification.objects.bulk_create(notifs)
+        return JsonResponse({'success': True, 'message': f'{len(notifs)} message(s) envoyé(s)'})
+    # GET → page dédiée
+    all_users = User.objects.filter(is_active=True).order_by('role', 'email')
+    ctx = {'all_users': all_users, 'page': 'messagerie'}
+    ctx.update(_global_ctx())
+    return render(request, 'admin_dashboard/ecrire_utilisateurs.html', ctx)
+
+
+# ── Wallet Plateforme ─────────────────────────────────────────
+
+@admin_required
+def wallet_plateforme(request):
+    """
+    Vue du portefeuille global de la plateforme Proxim.
+    Agrège toutes les commissions perçues, retraits, et soldes.
+    """
+    # Revenus totaux (commissions)
+    revenus_total = Payment.objects.filter(statut='SUCCES').aggregate(t=Sum('commission_plateforme'))['t'] or 0
+
+    # Retraits traités (argent sorti)
+    retraits_total = Withdrawal.objects.filter(statut='TRAITE').aggregate(t=Sum('montant'))['t'] or 0
+    retraits_en_attente_montant = Withdrawal.objects.filter(statut='EN_ATTENTE').aggregate(t=Sum('montant'))['t'] or 0
+
+    # Volume total des paiements
+    volume_total = Payment.objects.filter(statut='SUCCES').aggregate(t=Sum('montant_total'))['t'] or 0
+
+    # Solde théorique de la plateforme
+    solde_plateforme = float(revenus_total) - float(retraits_total)
+
+    # Wallets utilisateurs (soldes prestataires)
+    wallets = Wallet.objects.select_related('user').order_by('-solde')
+    solde_total_prestataires = wallets.aggregate(t=Sum('solde'))['t'] or 0
+
+    # Transactions récentes
+    transactions_recentes = Transaction.objects.select_related(
+        'wallet__user'
+    ).order_by('-date')[:20]
+
+    # Paiements récents
+    paiements_recents = Payment.objects.filter(statut='SUCCES').select_related(
+        'client', 'order__service'
+    ).order_by('-date_paiement')[:15]
+
+    # Stats par mois (6 derniers mois)
+    today = date.today()
+    stats_mois = []
+    for i in range(5, -1, -1):
+        mois = (today.replace(day=1) - timedelta(days=i * 30)).replace(day=1)
+        if mois.month < 12:
+            fin = mois.replace(month=mois.month + 1, day=1)
+        else:
+            fin = mois.replace(year=mois.year + 1, month=1, day=1)
+        revenus_m = Payment.objects.filter(
+            statut='SUCCES', date_paiement__date__gte=mois, date_paiement__date__lt=fin
+        ).aggregate(t=Sum('commission_plateforme'))['t'] or 0
+        retraits_m = Withdrawal.objects.filter(
+            statut='TRAITE', date_traitement__date__gte=mois, date_traitement__date__lt=fin
+        ).aggregate(t=Sum('montant'))['t'] or 0
+        stats_mois.append({
+            'mois': mois.strftime('%b %Y'),
+            'revenus': float(revenus_m),
+            'retraits': float(retraits_m),
+        })
+
+    ctx = {
+        'revenus_total': revenus_total,
+        'retraits_total': retraits_total,
+        'retraits_en_attente_montant': retraits_en_attente_montant,
+        'volume_total': volume_total,
+        'solde_plateforme': solde_plateforme,
+        'wallets': wallets,
+        'solde_total_prestataires': solde_total_prestataires,
+        'transactions_recentes': transactions_recentes,
+        'paiements_recents': paiements_recents,
+        'stats_mois': stats_mois,
+        'page': 'wallet',
+    }
+    ctx.update(_global_ctx())
+    return render(request, 'admin_dashboard/wallet.html', ctx)
 
 
 # ── Notifications broadcast ───────────────────────────────────
@@ -672,10 +1085,9 @@ def notifications_broadcast(request):
             users = users.filter(role='client')
         elif cible == 'prestataires':
             users = users.filter(role='prestataire')
-        notifs = [
+        Notification.objects.bulk_create([
             Notification(destinataire=u, type='NOUVEAU_MESSAGE', titre=titre, contenu=contenu)
             for u in users
-        ]
-        Notification.objects.bulk_create(notifs)
-        return JsonResponse({'success': True, 'message': f'{len(notifs)} notification(s) envoyée(s)'})
+        ])
+        return JsonResponse({'success': True, 'message': f'Notification envoyée à {users.count()} utilisateur(s)'})
     return JsonResponse({'error': 'Méthode non autorisée'}, status=405)

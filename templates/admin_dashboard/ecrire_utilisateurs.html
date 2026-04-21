@@ -1,0 +1,191 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Écrire aux utilisateurs — Proxim Admin{% endblock %}
+{% block topbar_title %}Écrire aux <span>Utilisateurs</span>{% endblock %}
+
+{% block content %}
+<div class="page-title">Messagerie <span>Admin</span></div>
+<div class="page-subtitle">Envoyez des messages à vos utilisateurs</div>
+
+<div class="row g-3">
+  <!-- Formulaire -->
+  <div class="col-lg-5">
+    <div class="card-panel">
+      <div class="panel-header"><h6><i class="fas fa-paper-plane"></i> Composer un message</h6></div>
+      <div style="padding:24px;display:flex;flex-direction:column;gap:16px;">
+
+        <!-- Cible -->
+        <div>
+          <label style="color:var(--text-muted);font-size:12px;font-weight:600;display:block;margin-bottom:8px;">
+            <i class="fas fa-users me-1"></i>Destinataires
+          </label>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-card2);border-radius:8px;cursor:pointer;border:1px solid transparent;transition:all 0.2s;" id="label-tous">
+              <input type="radio" name="cible" value="tous" checked onchange="updateCible(this)"/>
+              <span style="color:white;font-size:13px;">🌍 Tous les utilisateurs actifs</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-card2);border-radius:8px;cursor:pointer;border:1px solid transparent;transition:all 0.2s;" id="label-clients">
+              <input type="radio" name="cible" value="clients" onchange="updateCible(this)"/>
+              <span style="color:white;font-size:13px;">👤 Clients uniquement</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-card2);border-radius:8px;cursor:pointer;border:1px solid transparent;transition:all 0.2s;" id="label-prestataires">
+              <input type="radio" name="cible" value="prestataires" onchange="updateCible(this)"/>
+              <span style="color:white;font-size:13px;">🔧 Prestataires uniquement</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-card2);border-radius:8px;cursor:pointer;border:1px solid transparent;transition:all 0.2s;" id="label-individuel">
+              <input type="radio" name="cible" value="individuel" onchange="updateCible(this)"/>
+              <span style="color:white;font-size:13px;">👤 Utilisateur spécifique</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Recherche utilisateur individuel -->
+        <div id="zone-individuel" style="display:none;">
+          <label style="color:var(--text-muted);font-size:12px;font-weight:600;display:block;margin-bottom:6px;">Sélectionner l'utilisateur</label>
+          <select id="select-user" class="filter-input w-100">
+            <option value="">-- Choisir un utilisateur --</option>
+            {% for u in all_users %}
+            <option value="{{ u.id }}">{{ u.email }} ({{ u.role }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Titre -->
+        <div>
+          <label style="color:var(--text-muted);font-size:12px;font-weight:600;display:block;margin-bottom:6px;">
+            <i class="fas fa-heading me-1"></i>Titre *
+          </label>
+          <input type="text" id="msg-titre" class="filter-input w-100" placeholder="Ex: Mise à jour importante"/>
+        </div>
+
+        <!-- Contenu -->
+        <div>
+          <label style="color:var(--text-muted);font-size:12px;font-weight:600;display:block;margin-bottom:6px;">
+            <i class="fas fa-align-left me-1"></i>Message *
+          </label>
+          <textarea id="msg-contenu" class="filter-input w-100" rows="5" placeholder="Rédigez votre message..."></textarea>
+        </div>
+
+        <!-- Bouton envoi -->
+        <button class="btn btn-gold w-100" style="padding:13px;font-size:15px;font-weight:700;" onclick="envoyerMessage()">
+          <i class="fas fa-paper-plane me-2"></i>Envoyer le message
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Aperçu + historique -->
+  <div class="col-lg-7">
+    <!-- Aperçu en temps réel -->
+    <div class="card-panel mb-3">
+      <div class="panel-header"><h6><i class="fas fa-eye"></i> Aperçu notification</h6></div>
+      <div style="padding:20px;">
+        <div style="background:var(--primary);border-radius:14px;padding:16px;border:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="width:36px;height:36px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+              <i class="fas fa-bell" style="color:var(--primary);font-size:16px;"></i>
+            </div>
+            <div>
+              <div style="color:white;font-size:13px;font-weight:700;" id="preview-titre">Titre du message</div>
+              <div style="color:var(--text-muted);font-size:11px;">Proxim • à l'instant</div>
+            </div>
+          </div>
+          <div style="color:#a0b4c8;font-size:13px;line-height:1.5;" id="preview-contenu">Le contenu de votre message apparaîtra ici...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Templates rapides -->
+    <div class="card-panel">
+      <div class="panel-header"><h6><i class="fas fa-magic"></i> Templates rapides</h6></div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:8px;">
+        {% for template in templates %}{% endfor %}
+        <div class="template-item" onclick="appliquerTemplate('Bienvenue sur Proxim !', 'Nous sommes ravis de vous accueillir sur Proxim, votre marketplace de services au Bénin. Découvrez des prestataires de qualité près de chez vous !')">
+          <i class="fas fa-hand-wave" style="color:var(--gold);"></i>
+          <div><div style="color:white;font-size:13px;font-weight:600;">Message de bienvenue</div><div style="color:var(--text-muted);font-size:11px;">Pour les nouveaux utilisateurs</div></div>
+        </div>
+        <div class="template-item" onclick="appliquerTemplate('Nouvelle fonctionnalité disponible 🎉', 'Bonne nouvelle ! Proxim vient de lancer de nouvelles fonctionnalités pour améliorer votre expérience. Découvrez-les dès maintenant !')">
+          <i class="fas fa-star" style="color:#10B981;"></i>
+          <div><div style="color:white;font-size:13px;font-weight:600;">Nouvelle fonctionnalité</div><div style="color:var(--text-muted);font-size:11px;">Annonce de mise à jour</div></div>
+        </div>
+        <div class="template-item" onclick="appliquerTemplate('Maintenance planifiée', 'Proxim sera temporairement indisponible pour maintenance. Nous travaillons à améliorer votre expérience. Merci de votre compréhension.')">
+          <i class="fas fa-tools" style="color:#F59E0B;"></i>
+          <div><div style="color:white;font-size:13px;font-weight:600;">Maintenance</div><div style="color:var(--text-muted);font-size:11px;">Notification de maintenance</div></div>
+        </div>
+        <div class="template-item" onclick="appliquerTemplate('Complétez votre profil !', 'Votre profil est incomplet. Un profil complet augmente vos chances d\'être trouvé par les clients. Ajoutez votre photo et votre bio dès maintenant !')">
+          <i class="fas fa-user-edit" style="color:#3B82F6;"></i>
+          <div><div style="color:white;font-size:13px;font-weight:600;">Compléter le profil</div><div style="color:var(--text-muted);font-size:11px;">Relance prestataires</div></div>
+        </div>
+        <div class="template-item" onclick="appliquerTemplate('Soumettre vos documents KYC', 'Pour sécuriser votre compte et accéder à toutes les fonctionnalités, veuillez soumettre vos documents d\'identité dans l\'application.')">
+          <i class="fas fa-id-card" style="color:#EF4444;"></i>
+          <div><div style="color:white;font-size:13px;font-weight:600;">KYC requis</div><div style="color:var(--text-muted);font-size:11px;">Demande de documents</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.template-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; background: var(--bg-card2);
+  border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--border); transition: all 0.2s;
+}
+.template-item:hover { border-color: var(--gold); background: var(--primary-lighter); }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateCible(radio) {
+  const zone = document.getElementById('zone-individuel');
+  zone.style.display = radio.value === 'individuel' ? 'block' : 'none';
+  // Highlight selected
+  ['tous','clients','prestataires','individuel'].forEach(v => {
+    const lbl = document.getElementById('label-' + v);
+    if (lbl) lbl.style.borderColor = v === radio.value ? 'var(--gold)' : 'transparent';
+  });
+}
+
+// Aperçu live
+document.getElementById('msg-titre').addEventListener('input', function() {
+  document.getElementById('preview-titre').textContent = this.value || 'Titre du message';
+});
+document.getElementById('msg-contenu').addEventListener('input', function() {
+  document.getElementById('preview-contenu').textContent = this.value || 'Le contenu de votre message apparaîtra ici...';
+});
+
+function appliquerTemplate(titre, contenu) {
+  document.getElementById('msg-titre').value = titre;
+  document.getElementById('msg-contenu').value = contenu;
+  document.getElementById('preview-titre').textContent = titre;
+  document.getElementById('preview-contenu').textContent = contenu;
+}
+
+function envoyerMessage() {
+  const titre = document.getElementById('msg-titre').value.trim();
+  const contenu = document.getElementById('msg-contenu').value.trim();
+  const cible = document.querySelector('input[name="cible"]:checked').value;
+  const userId = cible === 'individuel' ? document.getElementById('select-user').value : '';
+
+  if (!titre || !contenu) { showToast('Titre et message obligatoires', 'warning'); return; }
+  if (cible === 'individuel' && !userId) { showToast('Sélectionnez un utilisateur', 'warning'); return; }
+
+  const data = { titre, contenu, cible };
+  if (userId) data.user_id = userId;
+
+  proxim_post('/admin-dashboard/messagerie/ecrire/', data, (d) => {
+    showToast(d.message, 'success');
+    document.getElementById('msg-titre').value = '';
+    document.getElementById('msg-contenu').value = '';
+    document.getElementById('preview-titre').textContent = 'Titre du message';
+    document.getElementById('preview-contenu').textContent = 'Le contenu de votre message apparaîtra ici...';
+  });
+}
+
+// Init
+document.getElementById('label-tous').style.borderColor = 'var(--gold)';
+</script>
+{% endblock %}

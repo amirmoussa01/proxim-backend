@@ -3,15 +3,20 @@
 {% block topbar_title %}Supervision <span>Messagerie</span>{% endblock %}
 
 {% block content %}
-<div class="page-title">Messagerie</div>
-<div class="page-subtitle">Supervision des conversations (lecture seule)</div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
+  <div class="page-title">Messagerie</div>
+  <a href="{% url 'admin_dashboard:ecrire_utilisateurs' %}" class="btn btn-gold px-4">
+    <i class="fas fa-paper-plane me-2"></i>Écrire aux utilisateurs
+  </a>
+</div>
+<div class="page-subtitle">Supervision des conversations et messages suspects</div>
 
 <div class="row g-3 mb-4">
   <div class="col-md-4">
     <div class="stat-card">
       <div class="icon" style="background:rgba(59,130,246,0.15);"><i class="fas fa-comments" style="color:#3B82F6;"></i></div>
       <div class="value">{{ conversations.count }}</div>
-      <div class="label">Conversations actives</div>
+      <div class="label">Conversations</div>
     </div>
   </div>
   <div class="col-md-4">
@@ -23,18 +28,69 @@
   </div>
   <div class="col-md-4">
     <div class="stat-card">
-      <div class="icon" style="background:rgba(245,158,11,0.15);"><i class="fas fa-envelope-open" style="color:#F59E0B;"></i></div>
-      <div class="value">{{ total_non_lus }}</div>
-      <div class="label">Messages non lus</div>
+      <div class="icon" style="background:rgba(239,68,68,0.15);"><i class="fas fa-flag" style="color:#EF4444;"></i></div>
+      <div class="value">{{ messages_suspects|length }}</div>
+      <div class="label">Messages signalés</div>
     </div>
   </div>
+</div>
+
+<!-- Messages suspects -->
+{% if messages_suspects %}
+<div class="card-panel mb-4">
+  <div class="panel-header">
+    <h6><i class="fas fa-exclamation-triangle" style="color:#EF4444;"></i> Messages suspects signalés</h6>
+    <span class="badge-status bs-error">{{ messages_suspects|length }} à traiter</span>
+  </div>
+  <div style="overflow-x:auto;">
+    <table class="proxim-table">
+      <thead><tr><th>Expéditeur</th><th>Conversation</th><th>Contenu</th><th>Date</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for msg in messages_suspects %}
+        <tr>
+          <td>
+            <div class="user-info">
+              <div class="name">{{ msg.expediteur.email|truncatechars:22 }}</div>
+              <div class="email">{{ msg.expediteur.role }}</div>
+            </div>
+          </td>
+          <td>
+            <a href="{% url 'admin_dashboard:detail_conversation' msg.conversation.id %}" style="color:var(--gold);text-decoration:none;">
+              <i class="fas fa-eye me-1"></i>Voir conv. #{{ msg.conversation.id }}
+            </a>
+          </td>
+          <td style="color:var(--text-muted);max-width:200px;">{{ msg.contenu|truncatechars:60 }}</td>
+          <td style="color:var(--text-muted);">{{ msg.date_envoi|date:"d/m/Y H:i" }}</td>
+          <td>
+            <a href="{% url 'admin_dashboard:detail_user' msg.expediteur.id %}" class="btn-icon btn-icon-error" title="Voir profil utilisateur">
+              <i class="fas fa-user-slash"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Toutes les conversations -->
+<div class="filter-bar">
+  <form method="get" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;">
+    <div class="search-box flex-grow-1" style="min-width:200px;">
+      <i class="fas fa-search"></i>
+      <input type="text" name="q" value="{{ q }}" placeholder="Nom client, prestataire..." class="filter-input w-100"/>
+    </div>
+    <button type="submit" class="btn btn-gold px-3"><i class="fas fa-filter me-1"></i>Filtrer</button>
+    <a href="{% url 'admin_dashboard:messagerie' %}" class="btn btn-outline-proxim px-3"><i class="fas fa-times"></i></a>
+  </form>
 </div>
 
 <div class="card-panel">
   <div style="overflow-x:auto;">
     <table class="proxim-table">
       <thead>
-        <tr><th>#</th><th>Client</th><th>Prestataire</th><th>Messages</th><th>Dernier message</th><th>Commande liée</th></tr>
+        <tr><th>#</th><th>Client</th><th>Prestataire</th><th>Messages</th><th>Dernier message</th><th>Commande</th><th>Action</th></tr>
       </thead>
       <tbody>
         {% for conv in conversations %}
@@ -48,28 +104,23 @@
           </td>
           <td>
             <div style="display:flex;align-items:center;gap:8px;">
-              <div class="user-avatar" style="width:26px;height:26px;font-size:10px;background:rgba(59,130,246,0.2);color:#3B82F6;">
-                {{ conv.prestatire.prenom|first|upper }}
-              </div>
+              <div class="user-avatar" style="width:26px;height:26px;font-size:10px;background:rgba(59,130,246,0.2);color:#3B82F6;">{{ conv.prestatire.prenom|first|upper }}</div>
               {{ conv.prestatire.prenom }} {{ conv.prestatire.nom }}
             </div>
           </td>
           <td style="text-align:center;">
             <span style="background:rgba(244,169,34,0.12);color:var(--gold);padding:3px 10px;border-radius:10px;font-weight:700;">{{ conv.nb_messages }}</span>
           </td>
-          <td style="color:var(--text-muted);">
-            {% if conv.dernier_message_date %}{{ conv.dernier_message_date|date:"d/m/Y H:i" }}{% else %}—{% endif %}
-          </td>
+          <td style="color:var(--text-muted);">{% if conv.dernier_message_date %}{{ conv.dernier_message_date|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
+          <td>{% if conv.order %}<a href="{% url 'admin_dashboard:detail_commande' conv.order.id %}" style="color:var(--gold);text-decoration:none;">#{{ conv.order.id }}</a>{% else %}—{% endif %}</td>
           <td>
-            {% if conv.order %}
-              <a href="{% url 'admin_dashboard:detail_commande' conv.order.id %}" style="color:var(--gold);text-decoration:none;">
-                <i class="fas fa-link me-1"></i>#{{ conv.order.id }}
-              </a>
-            {% else %}—{% endif %}
+            <a href="{% url 'admin_dashboard:detail_conversation' conv.id %}" class="btn-icon btn-icon-info" title="Voir les messages">
+              <i class="fas fa-eye"></i>
+            </a>
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">Aucune conversation</td></tr>
+        <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">Aucune conversation</td></tr>
         {% endfor %}
       </tbody>
     </table>

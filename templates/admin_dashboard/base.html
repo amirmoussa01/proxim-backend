@@ -559,6 +559,9 @@
     </a>
 
     <div class="sidebar-section">Finance</div>
+    <a href="{% url 'admin_dashboard:wallet' %}" class="sidebar-item {% if page == 'wallet' %}active{% endif %}">
+      <i class="fas fa-wallet"></i> Wallet Proxim
+    </a>
     <a href="{% url 'admin_dashboard:paiements' %}" class="sidebar-item {% if page == 'paiements' %}active{% endif %}">
       <i class="fas fa-credit-card"></i> Paiements
     </a>

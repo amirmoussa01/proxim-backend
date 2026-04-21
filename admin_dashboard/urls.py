@@ -12,9 +12,12 @@ urlpatterns = [
     path('utilisateurs/<int:user_id>/toggle/', views.toggle_user, name='toggle_user'),
     path('utilisateurs/<int:user_id>/verifier-email/', views.verifier_email_user, name='verifier_email_user'),
     path('utilisateurs/<int:user_id>/changer-role/', views.changer_role_user, name='changer_role_user'),
+    path('utilisateurs/<int:user_id>/changer-niveau/', views.changer_niveau_user, name='changer_niveau_user'),
     path('utilisateurs/<int:user_id>/supprimer/', views.supprimer_user, name='supprimer_user'),
     path('utilisateurs/<int:user_id>/notifier/', views.envoyer_notification_user, name='envoyer_notification_user'),
     path('utilisateurs/<int:user_id>/detail/', views.detail_user, name='detail_user'),
+    path('utilisateurs/<int:user_id>/pdf/', views.exporter_user_pdf, name='exporter_user_pdf'),
+    path('utilisateurs/<int:user_id>/modifier-profil/', views.modifier_profil_user, name='modifier_profil_user'),
 
     # Services
     path('services/', views.services, name='services'),
@@ -59,6 +62,12 @@ urlpatterns = [
 
     # Messagerie
     path('messagerie/', views.messagerie, name='messagerie'),
+    path('messagerie/<int:conv_id>/messages/', views.detail_conversation, name='detail_conversation'),
+    path('messagerie/<int:conv_id>/signaler-message/', views.signaler_message, name='signaler_message'),
+    path('messagerie/ecrire/', views.ecrire_utilisateurs, name='ecrire_utilisateurs'),
+
+    # Wallet plateforme
+    path('wallet/', views.wallet_plateforme, name='wallet'),
 
     # Notifications broadcast
     path('notifications/broadcast/', views.notifications_broadcast, name='notifications_broadcast'),

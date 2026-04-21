@@ -1,133 +1,503 @@
 {% extends 'admin_dashboard/base.html' %}
 {% block title %}Détail utilisateur — Proxim Admin{% endblock %}
-{% block topbar_title %}Détail <span>Utilisateur</span>{% endblock %}
+{% block topbar_title %}Détail <span>Utilisateur #{{ u.id }}</span>{% endblock %}
 
 {% block content %}
-<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
-  <a href="{% url 'admin_dashboard:utilisateurs' %}" style="color:var(--text-muted);text-decoration:none;">
-    <i class="fas fa-arrow-left"></i> Retour
-  </a>
-  <span style="color:var(--border);">/</span>
-  <span style="color:white;font-weight:600;">{{ u.email }}</span>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <a href="{% url 'admin_dashboard:utilisateurs' %}" style="color:var(--text-muted);text-decoration:none;">
+      <i class="fas fa-arrow-left"></i> Retour
+    </a>
+    <span style="color:var(--border);">/</span>
+    <span style="color:white;font-weight:600;">{{ u.email }}</span>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a href="{% url 'admin_dashboard:exporter_user_pdf' u.id %}" class="btn btn-outline-proxim px-3" target="_blank">
+      <i class="fas fa-file-pdf me-1" style="color:#EF4444;"></i>Exporter PDF
+    </a>
+    <button class="btn btn-gold px-3" onclick="ouvrirModifProfil()">
+      <i class="fas fa-edit me-1"></i>Modifier profil
+    </button>
+    <button class="btn btn-outline-proxim px-3" onclick="ouvrirNotif({{ u.id }}, '{{ u.email|escapejs }}')">
+      <i class="fas fa-bell me-1"></i>Notifier
+    </button>
+  </div>
 </div>
 
 <div class="row g-3">
+  <!-- ── Colonne gauche ── -->
   <div class="col-lg-4">
-    <div class="card-panel">
+
+    <!-- Profil card -->
+    <div class="card-panel mb-3">
       <div class="panel-header"><h6><i class="fas fa-user"></i> Profil</h6></div>
       <div style="padding:24px;text-align:center;">
-        <div class="user-avatar" style="width:72px;height:72px;font-size:28px;margin:0 auto 16px;">
-          {{ u.email|first|upper }}
-        </div>
-        <div style="color:white;font-size:17px;font-weight:700;">
+        {% if profil and profil.avatar %}
+          <img src="{{ profil.avatar.url }}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);margin-bottom:14px;" alt="Avatar"/>
+        {% else %}
+          <div class="user-avatar" style="width:80px;height:80px;font-size:30px;margin:0 auto 14px;">{{ u.email|first|upper }}</div>
+        {% endif %}
+
+        <div style="color:white;font-size:18px;font-weight:700;">
           {% if profil %}{{ profil.prenom }} {{ profil.nom }}{% else %}{{ u.email }}{% endif %}
         </div>
         <div style="color:var(--text-muted);font-size:13px;margin-top:4px;">{{ u.email }}</div>
-        <div style="margin-top:12px;">
+
+        <div style="margin-top:10px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
           {% if u.role == 'client' %}<span class="badge-status bs-info">Client</span>
           {% elif u.role == 'prestataire' %}<span class="badge-status bs-gold">Prestataire</span>
           {% else %}<span class="badge-status bs-error">Admin</span>{% endif %}
-          {% if not u.is_active %}<span class="badge-status bs-error ms-2">Désactivé</span>{% endif %}
+          {% if not u.is_active %}<span class="badge-status bs-error">Désactivé</span>{% endif %}
+          {% if not u.is_email_verified %}<span class="badge-status bs-warning">Email non vérifié</span>{% endif %}
         </div>
+
+        {% if u.role == 'prestataire' and profil %}
+        <div style="margin-top:12px;">
+          <span class="badge-status bs-gold" style="font-size:13px;">
+            <i class="fas fa-medal me-1"></i>{{ profil.niveau|upper }}
+          </span>
+        </div>
+        {% endif %}
       </div>
+
+      <!-- Infos détaillées -->
       <div style="padding:0 20px 20px;">
-        <div style="background:var(--bg-card2);border-radius:10px;padding:14px;">
-          {% if u.phone %}<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
-            <span style="color:var(--text-muted);font-size:12px;">Téléphone</span>
-            <span style="color:white;font-size:13px;">{{ u.phone }}</span>
-          </div>{% endif %}
-          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
-            <span style="color:var(--text-muted);font-size:12px;">Email vérifié</span>
-            <span>{% if u.is_email_verified %}<i class="fas fa-check" style="color:var(--success);"></i>{% else %}<i class="fas fa-times" style="color:var(--error);"></i>{% endif %}</span>
+        <div style="background:var(--bg-card2);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text-muted);font-size:12px;"><i class="fas fa-phone me-1"></i>Téléphone</span>
+            <span style="color:white;font-size:13px;">{{ u.phone|default:"—" }}</span>
           </div>
-          <div style="display:flex;justify-content:space-between;padding:6px 0;">
-            <span style="color:var(--text-muted);font-size:12px;">Inscription</span>
+          {% if profil %}
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text-muted);font-size:12px;"><i class="fas fa-map-marker-alt me-1"></i>Adresse</span>
+            <span style="color:white;font-size:13px;text-align:right;max-width:160px;">{{ profil.adresse|default:"—" }}</span>
+          </div>
+          {% endif %}
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text-muted);font-size:12px;"><i class="fas fa-calendar me-1"></i>Inscription</span>
             <span style="color:white;font-size:13px;">{{ u.date_joined|date:"d/m/Y" }}</span>
           </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text-muted);font-size:12px;"><i class="fas fa-envelope me-1"></i>Email vérifié</span>
+            <span>{% if u.is_email_verified %}<i class="fas fa-check-circle" style="color:var(--success);"></i>{% else %}<i class="fas fa-times-circle" style="color:var(--error);"></i>{% endif %}</span>
+          </div>
         </div>
+
         {% if u.role == 'prestataire' and profil %}
         <div style="background:var(--bg-card2);border-radius:10px;padding:14px;margin-top:10px;">
-          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
-            <span style="color:var(--text-muted);font-size:12px;">Niveau</span>
-            <span class="badge-status bs-gold">{{ profil.niveau|upper }}</span>
+          <div style="color:var(--gold);font-size:12px;font-weight:700;margin-bottom:10px;"><i class="fas fa-star me-1"></i>Stats prestataire</div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <span style="color:var(--text-muted);font-size:12px;">Note moyenne</span>
+            <span style="color:var(--gold);font-weight:700;">⭐ {{ profil.note_moyenne }}/5</span>
           </div>
-          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
-            <span style="color:var(--text-muted);font-size:12px;">Note</span>
-            <span style="color:var(--gold);font-weight:700;">
-              <i class="fas fa-star"></i> {{ profil.note_moyenne }}/5
-            </span>
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <span style="color:var(--text-muted);font-size:12px;">Nombre d'avis</span>
+            <span style="color:white;">{{ profil.nombre_avis }}</span>
           </div>
-          <div style="display:flex;justify-content:space-between;padding:6px 0;">
-            <span style="color:var(--text-muted);font-size:12px;">Vérifié KYC</span>
-            <span>{% if profil.is_verified %}<i class="fas fa-check" style="color:var(--success);"></i>{% else %}<i class="fas fa-times" style="color:var(--error);"></i>{% endif %}</span>
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <span style="color:var(--text-muted);font-size:12px;">KYC Vérifié</span>
+            <span>{% if profil.is_verified %}<i class="fas fa-check-circle" style="color:var(--success);"></i>{% else %}<i class="fas fa-times-circle" style="color:var(--error);"></i>{% endif %}</span>
           </div>
+          <div style="margin-top:12px;">
+            <div style="color:var(--text-muted);font-size:11px;margin-bottom:6px;">Changer le niveau :</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;">
+              {% for n in niveaux %}
+              <button onclick="changerNiveau('{{ n }}')"
+                style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);font-size:11px;cursor:pointer;transition:all 0.2s;
+                {% if profil.niveau == n %}background:var(--gold);color:var(--primary);border-color:var(--gold);font-weight:700;{% else %}background:transparent;color:var(--text-muted);{% endif %}">
+                {{ n|upper }}
+              </button>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if profil and profil.bio %}
+        <div style="background:var(--bg-card2);border-radius:10px;padding:14px;margin-top:10px;">
+          <div style="color:var(--text-muted);font-size:11px;margin-bottom:6px;">Bio</div>
+          <div style="color:white;font-size:13px;line-height:1.5;">{{ profil.bio }}</div>
         </div>
         {% endif %}
       </div>
     </div>
-  </div>
 
-  <div class="col-lg-8">
-    <!-- Commandes récentes -->
+    <!-- Wallet -->
+    {% if wallet %}
     <div class="card-panel mb-3">
-      <div class="panel-header">
-        <h6><i class="fas fa-shopping-cart"></i> Commandes récentes</h6>
-      </div>
-      <div style="overflow-x:auto;">
-        <table class="proxim-table">
-          <thead>
-            <tr><th>#</th><th>Service</th><th>Statut</th><th>Prix</th><th>Date</th></tr>
-          </thead>
-          <tbody>
-            {% for cmd in commandes %}
-            <tr>
-              <td style="color:var(--gold);font-weight:700;">#{{ cmd.id }}</td>
-              <td>{{ cmd.service.titre|truncatechars:30 }}</td>
-              <td>
-                {% if cmd.statut == 'EN_NEGOCIATION' %}<span class="badge-status bs-warning">Négociation</span>
-                {% elif cmd.statut == 'ACCEPTE' %}<span class="badge-status bs-info">Accepté</span>
-                {% elif cmd.statut == 'EN_COURS' %}<span class="badge-status bs-gold">En cours</span>
-                {% elif cmd.statut == 'TERMINE' %}<span class="badge-status bs-success">Terminé</span>
-                {% else %}<span class="badge-status bs-error">Annulé</span>{% endif %}
-              </td>
-              <td style="color:var(--gold);">{{ cmd.prix_final|default:"—" }}</td>
-              <td style="color:var(--text-muted);">{{ cmd.date_commande|date:"d/m/Y" }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px;">Aucune commande</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Documents KYC -->
-    {% if kycs %}
-    <div class="card-panel">
-      <div class="panel-header"><h6><i class="fas fa-id-card"></i> Documents KYC</h6></div>
-      <div style="padding:16px;display:flex;flex-direction:column;gap:10px;">
-        {% for kyc in kycs %}
-        <div style="background:var(--bg-card2);border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px;">
-          <div style="width:38px;height:38px;background:rgba(244,169,34,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;">
-            <i class="fas fa-file-alt" style="color:var(--gold);"></i>
+      <div class="panel-header"><h6><i class="fas fa-wallet"></i> Portefeuille</h6></div>
+      <div style="padding:20px;">
+        <div style="text-align:center;margin-bottom:16px;">
+          <div style="font-size:30px;font-weight:800;color:#10B981;">{{ wallet.solde }} <span style="font-size:16px;">{{ wallet.devise }}</span></div>
+          <div style="color:var(--text-muted);font-size:12px;">Solde actuel</div>
+        </div>
+        {% if transactions %}
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Dernières transactions</div>
+        {% for tx in transactions %}
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(30,58,95,0.4);">
+          <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+            {% if tx.type == 'CREDIT' %}background:rgba(16,185,129,0.15);{% else %}background:rgba(239,68,68,0.15);{% endif %}">
+            <i class="fas {% if tx.type == 'CREDIT' %}fa-arrow-down{% else %}fa-arrow-up{% endif %}"
+               style="font-size:11px;{% if tx.type == 'CREDIT' %}color:#10B981;{% else %}color:#EF4444;{% endif %}"></i>
           </div>
-          <div style="flex:1;">
-            <div style="color:white;font-size:13px;font-weight:600;">{{ kyc.type_document }}</div>
-            <div style="color:var(--text-muted);font-size:11px;">{{ kyc.date_soumission|date:"d/m/Y H:i" }}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="color:white;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ tx.description|truncatechars:30 }}</div>
+            <div style="color:var(--text-muted);font-size:10px;">{{ tx.date|date:"d/m/Y" }}</div>
           </div>
-          {% if kyc.statut == 'valide' %}<span class="badge-status bs-success">Validé</span>
-          {% elif kyc.statut == 'rejete' %}<span class="badge-status bs-error">Rejeté</span>
-          {% else %}<span class="badge-status bs-warning">En attente</span>{% endif %}
-          {% if kyc.fichier %}
-          <a href="{{ kyc.fichier.url }}" target="_blank" class="btn-icon btn-icon-info">
-            <i class="fas fa-eye"></i>
-          </a>
-          {% endif %}
+          <div style="font-weight:700;font-size:13px;{% if tx.type == 'CREDIT' %}color:#10B981;{% else %}color:#EF4444;{% endif %}">
+            {% if tx.type == 'CREDIT' %}+{% else %}-{% endif %}{{ tx.montant }}
+          </div>
         </div>
         {% endfor %}
+        {% endif %}
       </div>
     </div>
     {% endif %}
   </div>
+
+  <!-- ── Colonne droite ── -->
+  <div class="col-lg-8">
+
+    <!-- Tabs navigation -->
+    <div style="display:flex;gap:4px;margin-bottom:16px;background:var(--bg-card);border-radius:12px;padding:6px;border:1px solid var(--border);overflow-x:auto;">
+      {% for tab_id, tab_label, tab_icon in tabs %}      
+      {% endfor %}
+      <button onclick="showTab('commandes')" id="tab-commandes" class="tab-btn active">
+        <i class="fas fa-shopping-cart me-1"></i>Commandes
+      </button>
+      {% if u.role == 'prestataire' %}
+      <button onclick="showTab('services')" id="tab-services" class="tab-btn">
+        <i class="fas fa-briefcase me-1"></i>Services
+      </button>
+      {% endif %}
+      {% if kycs %}
+      <button onclick="showTab('kycs')" id="tab-kycs" class="tab-btn">
+        <i class="fas fa-id-card me-1"></i>KYC
+      </button>
+      {% endif %}
+      <button onclick="showTab('avis')" id="tab-avis" class="tab-btn">
+        <i class="fas fa-star me-1"></i>Avis
+      </button>
+      {% if posts %}
+      <button onclick="showTab('posts')" id="tab-posts" class="tab-btn">
+        <i class="fas fa-photo-video me-1"></i>Posts
+      </button>
+      {% endif %}
+      <button onclick="showTab('signalements')" id="tab-signalements" class="tab-btn">
+        <i class="fas fa-flag me-1"></i>Signalements
+      </button>
+      <button onclick="showTab('notifications')" id="tab-notifications" class="tab-btn">
+        <i class="fas fa-bell me-1"></i>Notifs
+      </button>
+    </div>
+
+    <!-- Tab: Commandes -->
+    <div id="panel-commandes" class="tab-panel">
+      <div class="card-panel">
+        <div class="panel-header"><h6><i class="fas fa-shopping-cart"></i> Commandes ({{ commandes|length }})</h6></div>
+        <div style="overflow-x:auto;">
+          <table class="proxim-table">
+            <thead><tr><th>#</th><th>Service</th><th>Statut</th><th>Prix</th><th>Date</th><th>Détail</th></tr></thead>
+            <tbody>
+              {% for cmd in commandes %}
+              <tr>
+                <td style="color:var(--gold);font-weight:700;">#{{ cmd.id }}</td>
+                <td>{{ cmd.service.titre|truncatechars:28 }}</td>
+                <td>{% if cmd.statut == 'EN_NEGOCIATION' %}<span class="badge-status bs-warning">Négociation</span>
+                {% elif cmd.statut == 'ACCEPTE' %}<span class="badge-status bs-info">Accepté</span>
+                {% elif cmd.statut == 'EN_COURS' %}<span class="badge-status bs-gold">En cours</span>
+                {% elif cmd.statut == 'TERMINE' %}<span class="badge-status bs-success">Terminé</span>
+                {% else %}<span class="badge-status bs-error">Annulé</span>{% endif %}</td>
+                <td style="color:var(--gold);">{{ cmd.prix_final|default:cmd.prix_propose|default:"—" }}</td>
+                <td style="color:var(--text-muted);">{{ cmd.date_commande|date:"d/m/Y" }}</td>
+                <td><a href="{% url 'admin_dashboard:detail_commande' cmd.id %}" class="btn-icon btn-icon-info"><i class="fas fa-eye"></i></a></td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:30px;">Aucune commande</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Services -->
+    <div id="panel-services" class="tab-panel" style="display:none;">
+      <div class="card-panel">
+        <div class="panel-header"><h6><i class="fas fa-briefcase"></i> Services ({{ services|length }})</h6></div>
+        <div style="overflow-x:auto;">
+          <table class="proxim-table">
+            <thead><tr><th>#</th><th>Titre</th><th>Catégorie</th><th>Prix</th><th>Commandes</th><th>Actif</th></tr></thead>
+            <tbody>
+              {% for svc in services %}
+              <tr>
+                <td style="color:var(--gold);">{{ svc.id }}</td>
+                <td>{{ svc.titre|truncatechars:30 }}</td>
+                <td><span class="badge-status bs-info">{{ svc.categorie.nom }}</span></td>
+                <td style="color:var(--gold);">{% if svc.pricing_type == 'SUR_DEVIS' %}Sur devis{% else %}{{ svc.prix_base|floatformat:0 }} F{% endif %}</td>
+                <td style="text-align:center;color:var(--gold);font-weight:700;">{{ svc.nb_cmd }}</td>
+                <td>{% if svc.is_available %}<i class="fas fa-check-circle" style="color:var(--success);"></i>{% else %}<i class="fas fa-times-circle" style="color:var(--error);"></i>{% endif %}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:30px;">Aucun service</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: KYC -->
+    <div id="panel-kycs" class="tab-panel" style="display:none;">
+      <div class="card-panel">
+        <div class="panel-header"><h6><i class="fas fa-id-card"></i> Documents KYC</h6></div>
+        <div style="padding:16px;display:flex;flex-direction:column;gap:10px;">
+          {% for kyc in kycs %}
+          <div style="background:var(--bg-card2);border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px;">
+            <div style="width:40px;height:40px;background:rgba(244,169,34,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+              <i class="fas fa-file-alt" style="color:var(--gold);"></i>
+            </div>
+            <div style="flex:1;">
+              <div style="color:white;font-size:13px;font-weight:600;">{{ kyc.type_document }}</div>
+              <div style="color:var(--text-muted);font-size:11px;">{{ kyc.date_soumission|date:"d/m/Y H:i" }}</div>
+            </div>
+            {% if kyc.statut == 'valide' %}<span class="badge-status bs-success">Validé</span>
+            {% elif kyc.statut == 'rejete' %}<span class="badge-status bs-error">Rejeté</span>
+            {% else %}<span class="badge-status bs-warning">En attente</span>{% endif %}
+            {% if kyc.fichier %}
+            <a href="{{ kyc.fichier.url }}" target="_blank" class="btn-icon btn-icon-info"><i class="fas fa-eye"></i></a>
+            {% endif %}
+          </div>
+          {% empty %}
+          <div style="text-align:center;color:var(--text-muted);padding:30px;">Aucun document KYC</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Avis -->
+    <div id="panel-avis" class="tab-panel" style="display:none;">
+      <div class="card-panel">
+        <div class="panel-header"><h6><i class="fas fa-star"></i> Avis ({{ avis|length }})</h6></div>
+        <div style="padding:16px;display:flex;flex-direction:column;gap:10px;">
+          {% for a in avis %}
+          <div style="background:var(--bg-card2);border-radius:10px;padding:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <div style="display:flex;gap:2px;">
+                {% for i in "12345" %}
+                  <i class="fas fa-star" style="font-size:12px;{% if forloop.counter <= a.note %}color:var(--gold);{% else %}color:var(--border);{% endif %}"></i>
+                {% endfor %}
+              </div>
+              <span style="color:var(--text-muted);font-size:11px;">{{ a.date|date:"d/m/Y" }}</span>
+            </div>
+            <div style="color:white;font-size:13px;">{{ a.commentaire|default:"Aucun commentaire" }}</div>
+          </div>
+          {% empty %}
+          <div style="text-align:center;color:var(--text-muted);padding:30px;">Aucun avis</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Posts -->
+    <div id="panel-posts" class="tab-panel" style="display:none;">
+      <div class="card-panel">
+        <div class="panel-header"><h6><i class="fas fa-photo-video"></i> Posts ({{ posts|length }})</h6></div>
+        <div style="padding:16px;display:flex;flex-direction:column;gap:10px;">
+          {% for post in posts %}
+          <div style="background:var(--bg-card2);border-radius:10px;padding:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span style="color:var(--text-muted);font-size:11px;">{{ post.date_publication|date:"d/m/Y H:i" }}</span>
+              {% if post.is_active %}<span class="badge-status bs-success">Actif</span>{% else %}<span class="badge-status bs-error">Masqué</span>{% endif %}
+            </div>
+            <div style="color:white;font-size:13px;line-height:1.5;">{{ post.contenu|truncatechars:120 }}</div>
+          </div>
+          {% empty %}
+          <div style="text-align:center;color:var(--text-muted);padding:30px;">Aucun post</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Signalements -->
+    <div id="panel-signalements" class="tab-panel" style="display:none;">
+      <div class="card-panel">
+        <div class="panel-header"><h6><i class="fas fa-flag"></i> Signalements reçus ({{ signalements_recus|length }})</h6></div>
+        <div style="overflow-x:auto;">
+          <table class="proxim-table">
+            <thead><tr><th>Signaleur</th><th>Raison</th><th>Description</th><th>Statut</th><th>Date</th></tr></thead>
+            <tbody>
+              {% for sig in signalements_recus %}
+              <tr>
+                <td style="color:var(--text-muted);">{{ sig.reporter.email|truncatechars:20 }}</td>
+                <td><span class="badge-status bs-warning">{{ sig.raison }}</span></td>
+                <td style="color:var(--text-muted);">{{ sig.description|truncatechars:50 }}</td>
+                <td>{% if sig.statut == 'EN_ATTENTE' %}<span class="badge-status bs-warning">En attente</span>
+                {% elif sig.statut == 'TRAITE' %}<span class="badge-status bs-success">Traité</span>
+                {% else %}<span class="badge-status bs-error">Rejeté</span>{% endif %}</td>
+                <td style="color:var(--text-muted);">{{ sig.date|date:"d/m/Y" }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:30px;">Aucun signalement</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Notifications -->
+    <div id="panel-notifications" class="tab-panel" style="display:none;">
+      <div class="card-panel">
+        <div class="panel-header"><h6><i class="fas fa-bell"></i> Dernières notifications</h6></div>
+        <div style="padding:16px;display:flex;flex-direction:column;gap:8px;">
+          {% for notif in notifications %}
+          <div style="background:var(--bg-card2);border-radius:10px;padding:12px;border-left:3px solid {% if notif.is_read %}var(--border){% else %}var(--gold){% endif %};">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+              <div style="color:{% if notif.is_read %}var(--text-muted){% else %}white{% endif %};font-size:13px;font-weight:600;">{{ notif.titre }}</div>
+              <span style="color:var(--text-muted);font-size:10px;">{{ notif.date|date:"d/m/Y H:i" }}</span>
+            </div>
+            <div style="color:var(--text-muted);font-size:12px;">{{ notif.contenu|truncatechars:80 }}</div>
+          </div>
+          {% empty %}
+          <div style="text-align:center;color:var(--text-muted);padding:30px;">Aucune notification</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
+
+<!-- Modal modifier profil -->
+<div class="modal fade proxim-modal" id="modalModifProfil" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-edit me-2" style="color:var(--gold);"></i>Modifier le profil</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:24px;">
+        <div class="row g-3">
+          <div class="col-6">
+            <label style="color:var(--text-muted);font-size:12px;font-weight:600;display:block;margin-bottom:5px;">Prénom</label>
+            <input type="text" id="edit-prenom" class="filter-input w-100" value="{% if profil %}{{ profil.prenom }}{% endif %}"/>
+          </div>
+          <div class="col-6">
+            <label style="color:var(--text-muted);font-size:12px;font-weight:600;display:block;margin-bottom:5px;">Nom</label>
+            <input type="text" id="edit-nom" class="filter-input w-100" value="{% if profil %}{{ profil.nom }}{% endif %}"/>
+          </div>
+          <div class="col-12">
+            <label style="color:var(--text-muted);font-size:12px;font-weight:600;display:block;margin-bottom:5px;">Téléphone</label>
+            <input type="text" id="edit-phone" class="filter-input w-100" value="{{ u.phone|default:'' }}"/>
+          </div>
+          <div class="col-12">
+            <label style="color:var(--text-muted);font-size:12px;font-weight:600;display:block;margin-bottom:5px;">Adresse</label>
+            <input type="text" id="edit-adresse" class="filter-input w-100" value="{% if profil %}{{ profil.adresse }}{% endif %}"/>
+          </div>
+          {% if u.role == 'prestataire' and profil %}
+          <div class="col-12">
+            <label style="color:var(--text-muted);font-size:12px;font-weight:600;display:block;margin-bottom:5px;">Bio</label>
+            <textarea id="edit-bio" class="filter-input w-100" rows="3">{{ profil.bio }}</textarea>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-proxim" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-gold px-4" onclick="sauvegarderProfil()">
+          <i class="fas fa-save me-1"></i>Sauvegarder
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal notification -->
+<div class="modal fade proxim-modal" id="modalNotif" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-bell me-2" style="color:var(--gold);"></i>Envoyer une notification</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:24px;">
+        <div class="mb-3">
+          <label style="color:var(--text-muted);font-size:12px;font-weight:600;display:block;margin-bottom:5px;">Titre</label>
+          <input type="text" id="notif-titre" class="filter-input w-100"/>
+        </div>
+        <div>
+          <label style="color:var(--text-muted);font-size:12px;font-weight:600;display:block;margin-bottom:5px;">Message</label>
+          <textarea id="notif-contenu" class="filter-input w-100" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-proxim" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-gold px-4" onclick="envoyerNotif()">Envoyer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.tab-btn {
+  padding: 8px 14px; border: none; border-radius: 8px;
+  background: transparent; color: var(--text-muted);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s; white-space: nowrap;
+}
+.tab-btn.active {
+  background: var(--gold); color: var(--primary);
+}
+.tab-btn:hover:not(.active) { background: var(--primary-light); color: white; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).style.display = 'block';
+  document.getElementById('tab-' + name).classList.add('active');
+}
+function ouvrirModifProfil() {
+  new bootstrap.Modal(document.getElementById('modalModifProfil')).show();
+}
+function sauvegarderProfil() {
+  const data = {
+    prenom: document.getElementById('edit-prenom').value,
+    nom: document.getElementById('edit-nom').value,
+    phone: document.getElementById('edit-phone').value,
+    adresse: document.getElementById('edit-adresse').value,
+  };
+  const bioEl = document.getElementById('edit-bio');
+  if (bioEl) data.bio = bioEl.value;
+  proxim_post('/admin-dashboard/utilisateurs/{{ u.id }}/modifier-profil/', data, () => {
+    bootstrap.Modal.getInstance(document.getElementById('modalModifProfil')).hide();
+    setTimeout(() => location.reload(), 800);
+  });
+}
+function ouvrirNotif(userId, email) {
+  document.getElementById('notif-titre').value = '';
+  document.getElementById('notif-contenu').value = '';
+  new bootstrap.Modal(document.getElementById('modalNotif')).show();
+}
+function envoyerNotif() {
+  const titre = document.getElementById('notif-titre').value.trim();
+  const contenu = document.getElementById('notif-contenu').value.trim();
+  if (!titre || !contenu) { showToast('Titre et message obligatoires', 'warning'); return; }
+  proxim_post('/admin-dashboard/utilisateurs/{{ u.id }}/notifier/', {titre, contenu}, () => {
+    bootstrap.Modal.getInstance(document.getElementById('modalNotif')).hide();
+  });
+}
+function changerNiveau(niveau) {
+  if (!confirm(`Changer le niveau en ${niveau.toUpperCase()} ?`)) return;
+  proxim_post('/admin-dashboard/utilisateurs/{{ u.id }}/changer-niveau/', {niveau},
+    () => setTimeout(() => location.reload(), 800)
+  );
+}
+</script>
 {% endblock %}

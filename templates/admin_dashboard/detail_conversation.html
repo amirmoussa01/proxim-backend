@@ -1,0 +1,111 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}Conversation #{{ conv.id }} — Proxim Admin{% endblock %}
+{% block topbar_title %}Conversation <span>#{{ conv.id }}</span>{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+  <a href="{% url 'admin_dashboard:messagerie' %}" style="color:var(--text-muted);text-decoration:none;"><i class="fas fa-arrow-left"></i> Messagerie</a>
+  <span style="color:var(--border);">/</span>
+  <span style="color:white;">{{ conv.client.prenom }} ↔ {{ conv.prestatire.prenom }}</span>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-3">
+    <div class="card-panel">
+      <div class="panel-header"><h6><i class="fas fa-info-circle"></i> Participants</h6></div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:10px;">
+        <div style="background:var(--bg-card2);border-radius:10px;padding:12px;">
+          <div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;margin-bottom:6px;">Client</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="user-avatar" style="width:28px;height:28px;font-size:11px;">{{ conv.client.prenom|first|upper }}</div>
+            <div>
+              <div style="color:white;font-size:13px;font-weight:600;">{{ conv.client.prenom }} {{ conv.client.nom }}</div>
+            </div>
+          </div>
+        </div>
+        <div style="background:var(--bg-card2);border-radius:10px;padding:12px;">
+          <div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;margin-bottom:6px;">Prestataire</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="user-avatar" style="width:28px;height:28px;font-size:11px;background:rgba(59,130,246,0.2);color:#3B82F6;">{{ conv.prestatire.prenom|first|upper }}</div>
+            <div>
+              <div style="color:white;font-size:13px;font-weight:600;">{{ conv.prestatire.prenom }} {{ conv.prestatire.nom }}</div>
+            </div>
+          </div>
+        </div>
+        <div style="background:var(--bg-card2);border-radius:10px;padding:12px;">
+          <div style="color:var(--text-muted);font-size:11px;">{{ messages_list.count }} messages</div>
+          {% if conv.dernier_message_date %}
+          <div style="color:var(--text-muted);font-size:11px;">Dernier : {{ conv.dernier_message_date|date:"d/m/Y H:i" }}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-9">
+    <div class="card-panel">
+      <div class="panel-header">
+        <h6><i class="fas fa-comments"></i> Messages</h6>
+        <span style="color:var(--text-muted);font-size:11px;">Lecture seule — Signalez les messages suspects</span>
+      </div>
+      <div style="padding:16px;max-height:600px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;" id="messages-container">
+        {% for msg in messages_list %}
+        <div style="display:flex;gap:10px;{% if msg.expediteur == conv.client.user %}flex-direction:row-reverse;{% endif %}"
+             id="msg-{{ msg.id }}">
+          <div class="user-avatar" style="width:30px;height:30px;font-size:11px;flex-shrink:0;
+            {% if msg.expediteur != conv.client.user %}background:rgba(59,130,246,0.2);color:#3B82F6;{% endif %}">
+            {{ msg.expediteur.email|first|upper }}
+          </div>
+          <div style="max-width:70%;">
+            <div style="padding:10px 14px;border-radius:{% if msg.expediteur == conv.client.user %}12px 12px 4px 12px{% else %}12px 12px 12px 4px{% endif %};
+              {% if msg.is_deleted %}background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);{% elif msg.expediteur == conv.client.user %}background:rgba(244,169,34,0.15);{% else %}background:var(--primary-light);{% endif %}">
+              {% if msg.is_deleted %}
+              <div style="color:#EF4444;font-size:12px;"><i class="fas fa-flag me-1"></i>Message signalé</div>
+              {% else %}
+              <div style="color:white;font-size:13px;line-height:1.5;">{{ msg.contenu }}</div>
+              {% if msg.image %}<img src="{{ msg.image }}" style="max-width:100%;border-radius:8px;margin-top:6px;" alt="Image"/>{% endif %}
+              {% endif %}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:4px;{% if msg.expediteur == conv.client.user %}justify-content:flex-end;{% endif %}">
+              <span style="color:var(--text-muted);font-size:10px;">{{ msg.date_envoi|date:"d/m H:i" }}</span>
+              {% if not msg.is_deleted %}
+              <button onclick="signalerMessage({{ msg.id }})" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:11px;padding:0;" title="Signaler ce message">
+                <i class="fas fa-flag"></i>
+              </button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% empty %}
+        <div style="text-align:center;color:var(--text-muted);padding:40px;">Aucun message</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-scroll vers le bas
+document.addEventListener('DOMContentLoaded', function() {
+  const container = document.getElementById('messages-container');
+  if (container) container.scrollTop = container.scrollHeight;
+});
+
+function signalerMessage(msgId) {
+  if (!confirm('Signaler ce message comme suspect ?')) return;
+  const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+  fetch('/admin-dashboard/messagerie/{{ conv.id }}/signaler-message/', {
+    method: 'POST',
+    headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: `message_id=${msgId}`
+  }).then(r => r.json()).then(d => {
+    if (d.success) {
+      showToast(d.message, 'success');
+      setTimeout(() => location.reload(), 800);
+    } else showToast(d.error || 'Erreur', 'error');
+  });
+}
+</script>
+{% endblock %}
