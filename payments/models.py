@@ -79,8 +79,18 @@ class Payment(models.Model):
     montant_prestatire = models.DecimalField(max_digits=12, decimal_places=2)
     methode = models.CharField(max_length=20, choices=METHODE_CHOICES)
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default=STATUT_ATTENTE)
+    # ─── ESCROW : fonds bloqués jusqu'à validation admin ───────
+    fonds_bloques = models.BooleanField(
+        default=True,
+        help_text='True = fonds en attente de validation admin. False = virés au prestataire.'
+    )
+    # ────────────────────────────────────────────────────────────
     fedapay_transaction_id = models.CharField(max_length=255, blank=True, null=True)
     date_paiement = models.DateTimeField(auto_now_add=True)
+    date_virement = models.DateTimeField(
+        blank=True, null=True,
+        help_text='Date à laquelle l admin a validé et viré les fonds au prestataire'
+    )
 
     class Meta:
         verbose_name = 'Paiement'

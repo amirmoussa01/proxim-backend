@@ -3,14 +3,18 @@ import os
 import json
 import firebase_admin
 from firebase_admin import credentials, messaging as fcm_messaging
+from django.contrib.auth import get_user_model
 
-# Sécurité pour l'initialisation sur Clever Cloud
+User = get_user_model()
+
+
+# ─── FIREBASE ─────────────────────────────────────────────────
+
 def get_firebase_app():
     if not firebase_admin._apps:
         creds_json = os.environ.get('FIREBASE_CREDENTIALS_JSON')
         if creds_json:
             try:
-                # Nettoyage des espaces et chargement du JSON
                 decoded_creds = json.loads(creds_json.strip())
                 cred = credentials.Certificate(decoded_creds)
                 return firebase_admin.initialize_app(cred)
@@ -18,18 +22,17 @@ def get_firebase_app():
                 print(f"[FCM SETUP ERROR] Erreur initialisation: {e}")
     return firebase_admin.get_app()
 
+
 def envoyer_push(user, titre, corps, data=None):
     get_firebase_app()
     token = getattr(user, 'fcm_token', None)
-    
-    # CE PRINT DOIT APPARAÎTRE DANS TES LOGS CLEVER CLOUD
+
     print(f"DEBUG_PUSH_START: Tentative pour {user.email}")
-    
+
     if not token:
         print(f"DEBUG_PUSH_FAIL: Pas de token pour {user.email}")
         return
 
-    # Préparation des data pour Firebase (clés et valeurs en String obligatoire)
     payload_data = {k: str(v) for k, v in (data or {}).items()}
 
     try:
@@ -48,32 +51,10 @@ def envoyer_push(user, titre, corps, data=None):
             token=token,
         )
         response = fcm_messaging.send(message)
-        print(f'[FCM SUCCESS] Message envoyé avec succès ! ID: {response}')
+        print(f'[FCM SUCCESS] Message envoye avec succes ! ID: {response}')
     except Exception as e:
         print(f'[FCM ERROR] Erreur lors de l\'envoi Firebase: {str(e)}')
 
-def notifier(destinataire, type_notif, titre, contenu, objet_id=None, objet_type=None):
-    # 1. Sauvegarde dans ta base de données locale
-    Notification.objects.create(
-        destinataire=destinataire,
-        type=type_notif,
-        titre=titre,
-        contenu=contenu,
-        lien_objet_id=objet_id,
-        lien_objet_type=objet_type,
-    )
-    
-    # 2. Préparation du dictionnaire de données pour le téléphone
-    data_payload = {
-        'type': type_notif,
-        'objet_id': str(objet_id) if objet_id else "",
-        'objet_type': str(objet_type) if objet_type else ""
-    }
-    
-    # 3. Appel de l'envoi Push avec le payload
-    envoyer_push(destinataire, titre, contenu, data=data_payload)
-
-
 
 def notifier(destinataire, type_notif, titre, contenu, objet_id=None, objet_type=None):
     Notification.objects.create(
@@ -84,16 +65,12 @@ def notifier(destinataire, type_notif, titre, contenu, objet_id=None, objet_type
         lien_objet_id=objet_id,
         lien_objet_type=objet_type,
     )
-      # Prépare les données pour le push
     data_payload = {
         'type': type_notif,
-        'objet_id': objet_id,
-        'objet_type': objet_type
+        'objet_id': str(objet_id) if objet_id else '',
+        'objet_type': str(objet_type) if objet_type else '',
     }
     envoyer_push(destinataire, titre, contenu, data=data_payload)
-    
-    
-
 
 
 # ─── COMMANDES ────────────────────────────────────────────────
@@ -109,7 +86,6 @@ def notif_commande_recue(order):
     )
 
 
-
 def notif_commande_acceptee(order):
     notifier(
         destinataire=order.client.user,
@@ -122,6 +98,7 @@ def notif_commande_acceptee(order):
 
 
 def notif_commande_terminee(order):
+    # 1. Notifier le client
     notifier(
         destinataire=order.client.user,
         type_notif='COMMANDE_TERMINEE',
@@ -130,10 +107,25 @@ def notif_commande_terminee(order):
         objet_id=order.id,
         objet_type='order',
     )
+    # 2. Notifier TOUS les admins pour qu'ils puissent valider et declencher le virement
+    admins = User.objects.filter(is_staff=True, is_active=True)
+    for admin in admins:
+        notifier(
+            destinataire=admin,
+            type_notif='FIN_SERVICE_A_VALIDER',
+            titre='Service termine — Validation requise',
+            contenu=(
+                f'La commande #{order.id} ({order.service.titre}) est marquee comme terminee '
+                f'par {order.prestatire.prenom} {order.prestatire.nom}. '
+                f'Veuillez valider pour declencher le virement de '
+                f'{order.payment.montant_prestatire if hasattr(order, "payment") else "—"} FCFA.'
+            ),
+            objet_id=order.id,
+            objet_type='order',
+        )
 
 
 def notif_commande_annulee(order, annule_par):
-    # Notifier l'autre partie
     if annule_par == order.client.user:
         destinataire = order.prestatire.user
         message = f'La commande pour "{order.service.titre}" a ete annulee par le client'
@@ -193,7 +185,6 @@ def notif_nouveau_message(message):
 
     if expediteur == conversation.client.user:
         destinataire = conversation.prestatire.user
-        # ← utilise user.prenom / user.nom
         nom_expediteur = f'{conversation.client.user.prenom} {conversation.client.user.nom}'
     else:
         destinataire = conversation.client.user
@@ -208,14 +199,34 @@ def notif_nouveau_message(message):
         objet_type='conversation',
     )
 
+
 # ─── PAIEMENTS ────────────────────────────────────────────────
 
 def notif_paiement_recu(payment):
+    """Notifie le prestataire que les fonds sont bien bloques (en escrow)."""
     notifier(
         destinataire=payment.order.prestatire.user,
         type_notif='PAIEMENT_RECU',
-        titre='Paiement recu',
-        contenu=f'Vous avez recu un paiement de {payment.montant_prestatire} FCFA pour la commande #{payment.order.id}',
+        titre='Paiement recu — en attente de validation',
+        contenu=(
+            f'Le client a paye {payment.montant_total} FCFA pour la commande #{payment.order.id}. '
+            f'Votre part ({payment.montant_prestatire} FCFA) sera versee apres validation de la fin du service.'
+        ),
+        objet_id=payment.id,
+        objet_type='payment',
+    )
+
+
+def notif_virement_effectue(payment):
+    """Notifie le prestataire que l'admin a valide et que le virement est effectue."""
+    notifier(
+        destinataire=payment.order.prestatire.user,
+        type_notif='VIREMENT_EFFECTUE',
+        titre='Virement effectue',
+        contenu=(
+            f'L\'admin a valide la fin du service pour la commande #{payment.order.id}. '
+            f'{payment.montant_prestatire} FCFA ont ete credites sur votre portefeuille.'
+        ),
         objet_id=payment.id,
         objet_type='payment',
     )
@@ -235,7 +246,6 @@ def notif_retrait_traite(retrait):
 # ─── AVIS ─────────────────────────────────────────────────────
 
 def notif_nouvel_avis(review):
-    # ← ClientProfile a user.prenom/user.nom, pas prenom/nom directement
     prenom = review.client.user.prenom if hasattr(review.client, 'user') else ''
     nom = review.client.user.nom if hasattr(review.client, 'user') else ''
     notifier(

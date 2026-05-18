@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db import transaction as db_transaction
-from decimal import Decimal  # ← AJOUTE CET IMPORT
+from decimal import Decimal
 from .models import Wallet, Transaction, Payment, Withdrawal
 from .serializers import (
     WalletSerializer,
@@ -17,7 +17,7 @@ from orders.models import Order
 from notifications.utils import notif_paiement_recu, notif_retrait_traite
 
 
-COMMISSION_TAUX = Decimal('0.05')  
+COMMISSION_TAUX = Decimal('0.05')
 
 
 def get_or_create_wallet(user):
@@ -28,7 +28,7 @@ def get_or_create_wallet(user):
 def crediter_wallet(user, montant, description):
     wallet = get_or_create_wallet(user)
     solde_avant = wallet.solde
-    wallet.solde += Decimal(str(montant)) 
+    wallet.solde += Decimal(str(montant))
     wallet.save()
     Transaction.objects.create(
         wallet=wallet,
@@ -43,12 +43,10 @@ def crediter_wallet(user, montant, description):
 
 def debiter_wallet(user, montant, description):
     wallet = get_or_create_wallet(user)
-    if wallet.solde < Decimal(str(montant)):  
-        
+    if wallet.solde < Decimal(str(montant)):
         return None, 'Solde insuffisant'
     solde_avant = wallet.solde
-    wallet.solde -= Decimal(str(montant))  
-    
+    wallet.solde -= Decimal(str(montant))
     wallet.save()
     Transaction.objects.create(
         wallet=wallet,
@@ -162,13 +160,11 @@ def initier_paiement(request):
                 montant_prestatire=montant_prestatire,
                 methode=methode,
                 statut='SUCCES',
+                fonds_bloques=True,  # ← fonds bloqués, pas encore virés
             )
 
-            crediter_wallet(
-                order.prestatire.user,
-                montant_prestatire,
-                f'Paiement recu commande #{order.id}'
-            )
+            # ← SUPPRIMÉ : crediter_wallet immédiat vers prestataire
+            # Le virement se fait uniquement après validation admin
 
             order.statut = Order.STATUT_EN_COURS
             order.save()
@@ -179,7 +175,7 @@ def initier_paiement(request):
                 pass
 
             return Response({
-                'message': 'Paiement effectue avec succes via Wallet',
+                'message': 'Paiement effectue avec succes via Wallet. Fonds en attente de validation.',
                 'payment_id': payment.id,
             }, status=status.HTTP_201_CREATED)
 
@@ -209,13 +205,10 @@ def confirmer_paiement_fedapay(request):
 
     with db_transaction.atomic():
         payment.statut = 'SUCCES'
+        payment.fonds_bloques = True  # ← fonds bloqués
         payment.save()
 
-        crediter_wallet(
-            payment.order.prestatire.user,
-            payment.montant_prestatire,
-            f'Paiement recu commande #{payment.order.id}'
-        )
+        # ← SUPPRIMÉ : crediter_wallet immédiat vers prestataire
 
         payment.order.statut = Order.STATUT_EN_COURS
         payment.order.save()
@@ -226,7 +219,7 @@ def confirmer_paiement_fedapay(request):
         pass
 
     return Response({
-        'message': 'Paiement confirme avec succes',
+        'message': 'Paiement confirme. Fonds en attente de validation admin.',
         'payment_id': payment.id,
     })
 
@@ -357,7 +350,7 @@ def confirmer_paiement_kkiapay(request):
         )
 
     try:
-        montant_decimal = Decimal(str(montant))  # ← Decimal propre
+        montant_decimal = Decimal(str(montant))
     except Exception:
         return Response(
             {'error': 'Montant invalide'},
@@ -377,14 +370,14 @@ def confirmer_paiement_kkiapay(request):
                 'montant_prestatire': montant_prestataire,
                 'methode': 'MOBILE_MONEY',
                 'statut': 'SUCCES',
+                'fonds_bloques': True,  # ← fonds bloqués, pas encore virés
                 'fedapay_transaction_id': str(transaction_id or ''),
             }
         )
-        crediter_wallet(
-            order.prestatire.user,
-            montant_prestataire,
-            f'Paiement recu commande #{order.id}'
-        )
+
+        # ← SUPPRIMÉ : crediter_wallet immédiat vers prestataire
+        # L'admin déclenchera le virement après validation de fin de service
+
         order.statut = Order.STATUT_EN_COURS
         order.save()
 
@@ -394,7 +387,7 @@ def confirmer_paiement_kkiapay(request):
         pass
 
     return Response({
-        'message': 'Paiement confirme !',
+        'message': 'Paiement confirme ! Fonds en attente de validation admin.',
         'payment_id': payment.id,
         'statut': payment.statut,
     }, status=status.HTTP_201_CREATED)

@@ -14,10 +14,12 @@
     <div class="card-panel mb-3">
       <div class="panel-header"><h6><i class="fas fa-info-circle"></i> Informations</h6></div>
       <div style="padding:20px;display:flex;flex-direction:column;gap:12px;">
+
         <div style="background:var(--bg-card2);border-radius:10px;padding:14px;">
           <div style="color:var(--text-muted);font-size:11px;margin-bottom:4px;">Service</div>
           <div style="color:var(--text);font-weight:600;">{{ commande.service.titre }}</div>
         </div>
+
         <div style="display:flex;gap:10px;">
           <div style="flex:1;background:var(--bg-card2);border-radius:10px;padding:14px;">
             <div style="color:var(--text-muted);font-size:11px;margin-bottom:4px;">Client</div>
@@ -28,6 +30,7 @@
             <div style="color:var(--text);font-size:13px;font-weight:600;">{{ commande.prestatire.prenom }} {{ commande.prestatire.nom }}</div>
           </div>
         </div>
+
         <div style="background:var(--bg-card2);border-radius:10px;padding:14px;">
           <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
             <span style="color:var(--text-muted);font-size:12px;">Statut</span>
@@ -46,35 +49,83 @@
             <span style="color:var(--success);font-weight:600;">{{ commande.prix_final|default:"—" }}</span>
           </div>
         </div>
+
         {% if commande.notes_client %}
         <div style="background:var(--bg-card2);border-radius:10px;padding:14px;">
           <div style="color:var(--text-muted);font-size:11px;margin-bottom:6px;">Notes client</div>
           <div style="color:var(--text);font-size:13px;line-height:1.5;">{{ commande.notes_client }}</div>
         </div>
         {% endif %}
+
         {% if paiement %}
         <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:14px;">
-          <div style="color:#10B981;font-weight:700;font-size:13px;margin-bottom:8px;"><i class="fas fa-credit-card me-1"></i>Paiement</div>
+          <div style="color:#10B981;font-weight:700;font-size:13px;margin-bottom:8px;">
+            <i class="fas fa-credit-card me-1"></i>Paiement
+          </div>
           <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-            <span style="color:var(--text-muted);font-size:12px;">Montant</span>
+            <span style="color:var(--text-muted);font-size:12px;">Montant total</span>
             <span style="color:var(--text);font-weight:600;">{{ paiement.montant_total }} FCFA</span>
           </div>
           <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
             <span style="color:var(--text-muted);font-size:12px;">Commission</span>
             <span style="color:var(--gold);">{{ paiement.commission_plateforme }} FCFA</span>
           </div>
-          <div style="display:flex;justify-content:space-between;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <span style="color:var(--text-muted);font-size:12px;">Part prestataire</span>
+            <span style="color:var(--text);font-weight:600;">{{ paiement.montant_prestatire }} FCFA</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
             <span style="color:var(--text-muted);font-size:12px;">Méthode</span>
             <span style="color:var(--text);">{{ paiement.methode }}</span>
           </div>
+          <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);">
+            <span style="color:var(--text-muted);font-size:12px;">Fonds</span>
+            {% if paiement.fonds_bloques %}
+              <span style="background:rgba(245,158,11,0.15);color:#F59E0B;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;">
+                <i class="fas fa-lock me-1"></i>EN ESCROW
+              </span>
+            {% else %}
+              <span style="background:rgba(16,185,129,0.15);color:#10B981;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;">
+                <i class="fas fa-check me-1"></i>VIRÉ
+              </span>
+            {% endif %}
+          </div>
+          {% if paiement.date_virement %}
+          <div style="display:flex;justify-content:space-between;margin-top:6px;">
+            <span style="color:var(--text-muted);font-size:12px;">Viré le</span>
+            <span style="color:var(--text);font-size:12px;">{{ paiement.date_virement|date:"d/m/Y H:i" }}</span>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if commande.statut == 'TERMINE' and paiement.fonds_bloques %}
+        <div style="background:rgba(244,169,34,0.08);border:1px solid rgba(244,169,34,0.3);border-radius:10px;padding:16px;">
+          <div style="color:var(--gold);font-weight:700;font-size:13px;margin-bottom:6px;">
+            <i class="fas fa-hand-holding-usd me-1"></i>Action requise
+          </div>
+          <div style="color:var(--text-muted);font-size:12px;margin-bottom:12px;line-height:1.5;">
+            Le service est terminé. Validez pour virer
+            <strong style="color:var(--text);">{{ paiement.montant_prestatire }} FCFA</strong>
+            vers le wallet de
+            <strong style="color:var(--text);">{{ commande.prestatire.prenom }} {{ commande.prestatire.nom }}</strong>.
+          </div>
+          <button
+            id="btn-valider-virement"
+            data-commande-id="{{ commande.id }}"
+            data-csrf="{{ csrf_token }}"
+            style="width:100%;background:var(--gold);color:#0D1B2A;border:none;border-radius:8px;padding:10px 16px;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+            <i class="fas fa-paper-plane"></i>
+            Valider et virer les fonds
+          </button>
         </div>
         {% endif %}
+        {% endif %}
+
       </div>
     </div>
   </div>
 
   <div class="col-lg-8">
-    <!-- Historique statuts -->
     <div class="card-panel mb-3">
       <div class="panel-header"><h6><i class="fas fa-history"></i> Historique des statuts</h6></div>
       <div style="padding:20px;">
@@ -100,7 +151,6 @@
       </div>
     </div>
 
-    <!-- Négociations -->
     {% if negotiations %}
     <div class="card-panel">
       <div class="panel-header"><h6><i class="fas fa-comments"></i> Négociations</h6></div>
@@ -124,4 +174,55 @@
     {% endif %}
   </div>
 </div>
+
+<div id="toast-virement" style="display:none;position:fixed;bottom:24px;right:24px;z-index:9999;background:#0D1B2A;border:1px solid var(--border);border-radius:12px;padding:14px 20px;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+  <div id="toast-virement-msg" style="color:#fff;font-size:13px;font-weight:500;"></div>
+</div>
+
+<script>
+(function () {
+  var btn = document.getElementById('btn-valider-virement');
+  if (!btn) return;
+
+  btn.addEventListener('click', function () {
+    var commandeId = btn.getAttribute('data-commande-id');
+    var csrf = btn.getAttribute('data-csrf');
+    if (!confirm('Confirmer le virement des fonds au prestataire ?')) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Traitement en cours...';
+
+    fetch('/admin-dashboard/commandes/' + commandeId + '/valider-fin-service/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/json' },
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.success) {
+        btn.closest('div').style.display = 'none';
+        afficherToast(data.message, '#10B981');
+        setTimeout(function () { location.reload(); }, 2000);
+      } else {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Valider et virer les fonds';
+        afficherToast(data.error || 'Erreur inconnue', '#EF4444');
+      }
+    })
+    .catch(function () {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-paper-plane"></i> Valider et virer les fonds';
+      afficherToast('Erreur reseau, reessayez', '#EF4444');
+    });
+  });
+
+  function afficherToast(message, couleur) {
+    var toast = document.getElementById('toast-virement');
+    var msg = document.getElementById('toast-virement-msg');
+    msg.textContent = message;
+    msg.style.color = couleur || '#fff';
+    toast.style.display = 'block';
+    setTimeout(function () { toast.style.display = 'none'; }, 3500);
+  }
+})();
+</script>
 {% endblock %}

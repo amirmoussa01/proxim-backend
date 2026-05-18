@@ -54,12 +54,17 @@ def logout_view(request):
 # ── Helpers contexte global ───────────────────────────────────
 
 def _global_ctx():
-    """Données communes à toutes les pages (badges sidebar)."""
     return {
         'kyc_en_attente': KYCDocument.objects.filter(statut='en_attente').count(),
         'retraits_en_attente': Withdrawal.objects.filter(statut='EN_ATTENTE').count(),
         'signalements_en_attente': Report.objects.filter(statut='EN_ATTENTE').count(),
         'commandes_en_attente': Order.objects.filter(statut='EN_NEGOCIATION').count(),
+        # ← badge sidebar : commandes TERMINE avec fonds encore bloques
+        'virements_a_valider': Payment.objects.filter(
+            statut='SUCCES',
+            fonds_bloques=True,
+            order__statut='TERMINE',
+        ).count(),
     }
 
 
@@ -87,6 +92,9 @@ def dashboard_home(request):
     signalements_en_attente = Report.objects.filter(statut='EN_ATTENTE').count()
     total_posts = Post.objects.count()
     total_avis = Review.objects.count()
+    virements_a_valider = Payment.objects.filter(
+        statut='SUCCES', fonds_bloques=True, order__statut='TERMINE'
+    ).count()
 
     dernieres_commandes = Order.objects.select_related('client', 'prestatire', 'service').order_by('-date_commande')[:8]
     top_services = Service.objects.annotate(nb_commandes=Count('commandes')).order_by('-nb_commandes')[:5]
@@ -102,6 +110,7 @@ def dashboard_home(request):
         'kyc_en_attente': kyc_en_attente, 'retraits_en_attente': retraits_en_attente,
         'signalements_en_attente': signalements_en_attente,
         'total_posts': total_posts, 'total_avis': total_avis,
+        'virements_a_valider': virements_a_valider,
         'dernieres_commandes': dernieres_commandes,
         'top_services': top_services, 'derniers_avis': derniers_avis,
         'page': 'home',
@@ -215,7 +224,6 @@ def changer_role_user(request, user_id):
 
 @admin_required
 def changer_niveau_user(request, user_id):
-    """Changer le niveau d'un prestataire manuellement."""
     if request.method == 'POST':
         user = get_object_or_404(User, id=user_id)
         niveau = request.POST.get('niveau')
@@ -233,7 +241,6 @@ def changer_niveau_user(request, user_id):
 
 @admin_required
 def modifier_profil_user(request, user_id):
-    """Modifier les informations du profil d'un utilisateur."""
     if request.method == 'POST':
         user = get_object_or_404(User, id=user_id)
         try:
@@ -250,7 +257,6 @@ def modifier_profil_user(request, user_id):
                 profil.adresse = request.POST.get('adresse', profil.adresse)
                 profil.bio = request.POST.get('bio', profil.bio)
                 profil.save()
-            # Téléphone au niveau User
             phone = request.POST.get('phone', '').strip()
             if phone:
                 user.phone = phone
@@ -288,7 +294,6 @@ def envoyer_notification_user(request, user_id):
 @admin_required
 def detail_user(request, user_id):
     user = get_object_or_404(User, id=user_id)
-
     profil = None
     commandes = []
     kycs = []
@@ -305,69 +310,27 @@ def detail_user(request, user_id):
         ("signalements", "Signalements", "flag"),
         ("notifications", "Notifications", "bell"),
     ]
-
-    # Signalements & notifications
     signalements_recus = Report.objects.filter(cible_user=user).order_by('-date')[:10]
     notifications = Notification.objects.filter(destinataire=user).order_by('-date')[:10]
 
-    # Gestion selon le rôle
     if user.role == 'client':
         try:
             profil = user.client_profile
-
-            commandes = (
-                Order.objects
-                .filter(client=profil)
-                .select_related('service', 'prestatire')
-                .order_by('-date_commande')[:10]
-            )
-
-            avis = (
-                Review.objects
-                .filter(client=profil)
-                .select_related('prestatire')
-                .order_by('-date')[:5]
-            )
-
+            commandes = Order.objects.filter(client=profil).select_related('service', 'prestatire').order_by('-date_commande')[:10]
+            avis = Review.objects.filter(client=profil).select_related('prestatire').order_by('-date')[:5]
         except Exception:
             pass
-
     elif user.role == 'prestataire':
         try:
             profil = user.prestatire_profile
-
-            commandes = (
-                Order.objects
-                .filter(prestatire=profil)
-                .select_related('service', 'client')
-                .order_by('-date_commande')[:10]
-            )
-
+            commandes = Order.objects.filter(prestatire=profil).select_related('service', 'client').order_by('-date_commande')[:10]
             kycs = KYCDocument.objects.filter(prestatire=profil)
-
-            avis = (
-                Review.objects
-                .filter(prestatire=profil)
-                .select_related('client')
-                .order_by('-date')[:5]
-            )
-
-            services = (
-                Service.objects
-                .filter(prestatire=profil)
-                .annotate(nb_cmd=Count('commandes'))[:8]
-            )
-
-            posts = (
-                Post.objects
-                .filter(prestatire=profil)
-                .order_by('-date_publication')[:5]
-            )
-
+            avis = Review.objects.filter(prestatire=profil).select_related('client').order_by('-date')[:5]
+            services = Service.objects.filter(prestatire=profil).annotate(nb_cmd=Count('commandes'))[:8]
+            posts = Post.objects.filter(prestatire=profil).order_by('-date_publication')[:5]
         except Exception:
             pass
 
-    # Wallet
     try:
         wallet = Wallet.objects.get(user=user)
         transactions = wallet.transactions.order_by('-date')[:10]
@@ -375,29 +338,19 @@ def detail_user(request, user_id):
         wallet = None
         transactions = []
 
-    # Contexte
     ctx = {
-        'u': user,
-        'profil': profil,
-        'commandes': commandes,
-        'kycs': kycs,
-        'avis': avis,
-        'services': services,
-        'posts': posts,
-        'wallet': wallet,
-        'transactions': transactions,
-        'signalements_recus': signalements_recus,
-        'notifications': notifications,
-        'niveaux': niveaux,
-        'tabs': tabs,
-        'page': 'utilisateurs',
+        'u': user, 'profil': profil, 'commandes': commandes, 'kycs': kycs,
+        'avis': avis, 'services': services, 'posts': posts,
+        'wallet': wallet, 'transactions': transactions,
+        'signalements_recus': signalements_recus, 'notifications': notifications,
+        'niveaux': niveaux, 'tabs': tabs, 'page': 'utilisateurs',
     }
-
     ctx.update(_global_ctx())
-
     return render(request, 'admin_dashboard/detail_user.html', ctx)
 
-# ── Couleurs Proxim ───────────────────────────────────────────────────────────
+
+# ── Couleurs Proxim ───────────────────────────────────────────
+
 _DARK_BLUE  = colors.HexColor('#0D1B2A')
 _GOLD       = colors.HexColor('#F4A922')
 _GOLD_LIGHT = colors.HexColor('#FDE9B8')
@@ -410,25 +363,18 @@ _WHITE      = colors.white
 
 
 def _proxim_page_chrome(c, doc, ref_doc, now_str, generated):
-    """Dessine le header et footer administratif sur chaque page."""
     W, H = A4
     MARGIN_H = 18 * mm
     c.saveState()
 
-    # ── HEADER ──────────────────────────────────────────────────────────────
     header_h = 40 * mm
     c.setFillColor(_DARK_BLUE)
     c.rect(0, H - header_h, W, header_h, fill=1, stroke=0)
-
-    # Bande verticale or à gauche
     c.setFillColor(_GOLD)
     c.rect(0, H - header_h, 4, header_h, fill=1, stroke=0)
-
-    # Trait or bas du header
     c.setFillColor(_GOLD)
     c.rect(0, H - header_h, W, 2, fill=1, stroke=0)
 
-    # Logo "Proxim."
     logo_x, logo_y = 14 * mm, H - 18 * mm
     c.setFillColor(_WHITE)
     c.setFont('Helvetica-Bold', 22)
@@ -436,13 +382,10 @@ def _proxim_page_chrome(c, doc, ref_doc, now_str, generated):
     offset = c.stringWidth('Proxim', 'Helvetica-Bold', 22)
     c.setFillColor(_GOLD)
     c.drawString(logo_x + offset, logo_y, '.')
-
-    # Tagline
     c.setFillColor(colors.HexColor('#8FA5BC'))
     c.setFont('Helvetica', 7.5)
     c.drawString(logo_x, logo_y - 10, 'Plateforme de services a domicile')
 
-    # Badge "DOCUMENT CONFIDENTIEL"
     badge_w, badge_h = 58 * mm, 7 * mm
     badge_x = W - MARGIN_H - badge_w
     badge_y = H - 10 * mm
@@ -450,10 +393,8 @@ def _proxim_page_chrome(c, doc, ref_doc, now_str, generated):
     c.roundRect(badge_x, badge_y - badge_h, badge_w, badge_h, 3, fill=1, stroke=0)
     c.setFillColor(_DARK_BLUE)
     c.setFont('Helvetica-Bold', 6.5)
-    c.drawCentredString(badge_x + badge_w / 2, badge_y - badge_h + 2,
-                        'DOCUMENT ADMINISTRATIF CONFIDENTIEL')
+    c.drawCentredString(badge_x + badge_w / 2, badge_y - badge_h + 2, 'DOCUMENT ADMINISTRATIF CONFIDENTIEL')
 
-    # Référence + date
     c.setFillColor(_WHITE)
     c.setFont('Helvetica-Bold', 9)
     c.drawRightString(W - MARGIN_H, H - 23 * mm, f'Ref. : {ref_doc}')
@@ -461,19 +402,16 @@ def _proxim_page_chrome(c, doc, ref_doc, now_str, generated):
     c.setFont('Helvetica', 7.5)
     c.drawRightString(W - MARGIN_H, H - 31 * mm, f'Genere le {now_str}')
 
-    # Séparateur vertical central
     c.setStrokeColor(colors.HexColor('#2A4A6A'))
     c.setLineWidth(0.5)
     c.line(W / 2, H - header_h + 6, W / 2, H - 6)
 
-    # ── FOOTER ──────────────────────────────────────────────────────────────
     fy = 14 * mm
     c.setStrokeColor(_MID_GRAY)
     c.setLineWidth(0.5)
     c.line(MARGIN_H, fy + 2, W - MARGIN_H, fy + 2)
     c.setFillColor(_DARK_BLUE)
     c.rect(MARGIN_H, fy, W - 2 * MARGIN_H, 2, fill=1, stroke=0)
-
     c.setFillColor(_TEXT_GRAY)
     c.setFont('Helvetica', 7)
     c.drawString(MARGIN_H, fy - 7, f'Proxim Admin  •  {ref_doc}  •  Confidentiel')
@@ -489,7 +427,6 @@ def _proxim_page_chrome(c, doc, ref_doc, now_str, generated):
 
 @admin_required
 def exporter_user_pdf(request, user_id):
-    """Génère un PDF administratif premium avec toutes les infos de l'utilisateur."""
     user = get_object_or_404(User, id=user_id)
     profil = None
     commandes = []
@@ -499,16 +436,14 @@ def exporter_user_pdf(request, user_id):
     if user.role == 'client':
         try:
             profil = user.client_profile
-            commandes = list(Order.objects.filter(client=profil)
-                             .select_related('service').order_by('-date_commande')[:20])
+            commandes = list(Order.objects.filter(client=profil).select_related('service').order_by('-date_commande')[:20])
             avis = list(Review.objects.filter(client=profil).order_by('-date')[:10])
         except Exception:
             pass
     elif user.role == 'prestataire':
         try:
             profil = user.prestatire_profile
-            commandes = list(Order.objects.filter(prestatire=profil)
-                             .select_related('service').order_by('-date_commande')[:20])
+            commandes = list(Order.objects.filter(prestatire=profil).select_related('service').order_by('-date_commande')[:20])
             avis = list(Review.objects.filter(prestatire=profil).order_by('-date')[:10])
         except Exception:
             pass
@@ -527,29 +462,18 @@ def exporter_user_pdf(request, user_id):
     MARGIN_H   = 18 * mm
     CONTENT_W  = PAGE_W - 2 * MARGIN_H
 
-    # ── Styles ──────────────────────────────────────────────────────────────
     ST = {
-        'main_title': ParagraphStyle('MT', fontName='Helvetica-Bold', fontSize=16,
-                                     textColor=_DARK_BLUE, spaceAfter=0),
-        'id_right':   ParagraphStyle('IR', fontName='Helvetica', fontSize=10,
-                                     textColor=_TEXT_GRAY, alignment=TA_RIGHT, spaceAfter=0),
-        'section':    ParagraphStyle('SEC', fontName='Helvetica-Bold', fontSize=8,
-                                     textColor=_WHITE, spaceAfter=0),
-        'label':      ParagraphStyle('LBL', fontName='Helvetica', fontSize=7.5,
-                                     textColor=_TEXT_GRAY, spaceAfter=1),
-        'value':      ParagraphStyle('VAL', fontName='Helvetica-Bold', fontSize=10.5,
-                                     textColor=_TEXT_DARK, spaceAfter=0, leading=13),
-        'value_green':ParagraphStyle('VGN', fontName='Helvetica-Bold', fontSize=14,
-                                     textColor=_GREEN, spaceAfter=0),
-        'footer_note':ParagraphStyle('FN', fontName='Helvetica-Oblique', fontSize=7.5,
-                                     textColor=_TEXT_GRAY, leading=10),
-        'th':         ParagraphStyle('TH', fontName='Helvetica-Bold', fontSize=8,
-                                     textColor=_WHITE),
-        'td':         ParagraphStyle('TD', fontName='Helvetica', fontSize=8,
-                                     textColor=_TEXT_DARK, leading=11),
+        'main_title': ParagraphStyle('MT', fontName='Helvetica-Bold', fontSize=16, textColor=_DARK_BLUE, spaceAfter=0),
+        'id_right':   ParagraphStyle('IR', fontName='Helvetica', fontSize=10, textColor=_TEXT_GRAY, alignment=TA_RIGHT, spaceAfter=0),
+        'section':    ParagraphStyle('SEC', fontName='Helvetica-Bold', fontSize=8, textColor=_WHITE, spaceAfter=0),
+        'label':      ParagraphStyle('LBL', fontName='Helvetica', fontSize=7.5, textColor=_TEXT_GRAY, spaceAfter=1),
+        'value':      ParagraphStyle('VAL', fontName='Helvetica-Bold', fontSize=10.5, textColor=_TEXT_DARK, spaceAfter=0, leading=13),
+        'value_green':ParagraphStyle('VGN', fontName='Helvetica-Bold', fontSize=14, textColor=_GREEN, spaceAfter=0),
+        'footer_note':ParagraphStyle('FN', fontName='Helvetica-Oblique', fontSize=7.5, textColor=_TEXT_GRAY, leading=10),
+        'th':         ParagraphStyle('TH', fontName='Helvetica-Bold', fontSize=8, textColor=_WHITE),
+        'td':         ParagraphStyle('TD', fontName='Helvetica', fontSize=8, textColor=_TEXT_DARK, leading=11),
     }
 
-    # ── Helpers locaux ───────────────────────────────────────────────────────
     def section_header(title):
         t = Table([[Paragraph(title.upper(), ST['section'])]], colWidths=[CONTENT_W])
         t.setStyle(TableStyle([
@@ -569,8 +493,7 @@ def exporter_user_pdf(request, user_id):
             row = []
             for label, value in items[i:i+cols]:
                 cell = Table(
-                    [[Paragraph(label, ST['label'])],
-                     [Paragraph(str(value), ST['value'])]],
+                    [[Paragraph(label, ST['label'])], [Paragraph(str(value), ST['value'])]],
                     colWidths=[cell_w],
                 )
                 cell.setStyle(TableStyle([
@@ -614,7 +537,6 @@ def exporter_user_pdf(request, user_id):
         ]))
         return t
 
-    # ── Construction du story ────────────────────────────────────────────────
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer, pagesize=A4,
@@ -627,12 +549,10 @@ def exporter_user_pdf(request, user_id):
 
     story = []
 
-    # Titre + ligne décorative
     title_row = Table(
         [[
-            Paragraph(f'<b>FICHE UTILISATEUR</b>', ST['main_title']),
-            Paragraph(f'Identifiant : <b><font color="#F4A922">#{user.id}</font></b>',
-                      ST['id_right']),
+            Paragraph('<b>FICHE UTILISATEUR</b>', ST['main_title']),
+            Paragraph(f'Identifiant : <b><font color="#F4A922">#{user.id}</font></b>', ST['id_right']),
         ]],
         colWidths=[CONTENT_W * 0.6, CONTENT_W * 0.4],
     )
@@ -658,7 +578,6 @@ def exporter_user_pdf(request, user_id):
     story.append(deco)
     story.append(Spacer(1, 12))
 
-    # ── Section : Informations générales ────────────────────────────────────
     story.append(KeepTogether([
         section_header('Informations generales'),
         Spacer(1, 6),
@@ -673,14 +592,10 @@ def exporter_user_pdf(request, user_id):
         Spacer(1, 12),
     ]))
 
-    # ── Section : Profil ────────────────────────────────────────────────────
     if profil:
         nom_complet = f"{getattr(profil, 'prenom', '')} {getattr(profil, 'nom', '')}".strip() or '—'
         adresse = getattr(profil, 'adresse', '') or '—'
-        profil_items = [
-            ('Nom complet', nom_complet),
-            ('Adresse',     adresse),
-        ]
+        profil_items = [('Nom complet', nom_complet), ('Adresse', adresse)]
         if user.role == 'prestataire':
             bio = profil.bio or '—'
             profil_items += [
@@ -696,19 +611,14 @@ def exporter_user_pdf(request, user_id):
             Spacer(1, 12),
         ]))
 
-    # ── Section : Portefeuille ───────────────────────────────────────────────
     if wallet:
         story.append(section_header('Portefeuille'))
         story.append(Spacer(1, 6))
         w_cell_w = (CONTENT_W / 2) - 2
         w_tbl = Table(
             [[
-                Table([[Paragraph('Solde actuel', ST['label'])],
-                       [Paragraph(f'{wallet.solde} {wallet.devise}', ST['value_green'])]],
-                      colWidths=[w_cell_w]),
-                Table([[Paragraph('Devise', ST['label'])],
-                       [Paragraph(str(wallet.devise), ST['value'])]],
-                      colWidths=[w_cell_w]),
+                Table([[Paragraph('Solde actuel', ST['label'])], [Paragraph(f'{wallet.solde} {wallet.devise}', ST['value_green'])]], colWidths=[w_cell_w]),
+                Table([[Paragraph('Devise', ST['label'])], [Paragraph(str(wallet.devise), ST['value'])]], colWidths=[w_cell_w]),
             ]],
             colWidths=[w_cell_w + 2] * 2,
         )
@@ -724,49 +634,34 @@ def exporter_user_pdf(request, user_id):
         story.append(w_tbl)
         story.append(Spacer(1, 12))
 
-    # ── Section : Commandes ──────────────────────────────────────────────────
     if commandes:
         cmd_rows = [
-            [f'#{cmd.id}',
-             cmd.service.titre[:38],
-             cmd.statut,
-             str(cmd.prix_final or cmd.prix_propose or '—'),
-             cmd.date_commande.strftime('%d/%m/%Y')]
+            [f'#{cmd.id}', cmd.service.titre[:38], cmd.statut,
+             str(cmd.prix_final or cmd.prix_propose or '—'), cmd.date_commande.strftime('%d/%m/%Y')]
             for cmd in commandes
         ]
         story.append(KeepTogether([
             section_header(f'Historique commandes ({len(commandes)})'),
             Spacer(1, 6),
-            data_table(
-                ['N°', 'Service', 'Statut', 'Prix final', 'Date'],
-                cmd_rows,
-                [0.08, 0.42, 0.18, 0.16, 0.16],
-            ),
+            data_table(['N°', 'Service', 'Statut', 'Prix final', 'Date'], cmd_rows, [0.08, 0.42, 0.18, 0.16, 0.16]),
             Spacer(1, 12),
         ]))
 
-    # ── Section : Avis ──────────────────────────────────────────────────────
     if avis:
         note_moy = sum(a.note for a in avis) / len(avis)
         avis_rows = [
             ['★' * a.note + '☆' * (5 - a.note),
-             (a.commentaire[:65] + '...') if a.commentaire and len(a.commentaire) > 65
-             else (a.commentaire or '—'),
+             (a.commentaire[:65] + '...') if a.commentaire and len(a.commentaire) > 65 else (a.commentaire or '—'),
              a.date.strftime('%d/%m/%Y')]
             for a in avis
         ]
         story.append(KeepTogether([
             section_header(f'Avis clients ({len(avis)})  —  Moyenne : {note_moy:.1f} / 5'),
             Spacer(1, 6),
-            data_table(
-                ['Note', 'Commentaire', 'Date'],
-                avis_rows,
-                [0.14, 0.68, 0.18],
-            ),
+            data_table(['Note', 'Commentaire', 'Date'], avis_rows, [0.14, 0.68, 0.18]),
             Spacer(1, 12),
         ]))
 
-    # ── Note de confidentialité ──────────────────────────────────────────────
     note_tbl = Table(
         [[Paragraph(
             '<i>Ce document est genere automatiquement par le systeme Proxim Admin. '
@@ -787,15 +682,12 @@ def exporter_user_pdf(request, user_id):
     ]))
     story.append(note_tbl)
 
-    # ── Build ────────────────────────────────────────────────────────────────
     cb = lambda c, d: _proxim_page_chrome(c, d, ref_doc, now_str, gen_date)
     doc.build(story, onFirstPage=cb, onLaterPages=cb)
 
     buffer.seek(0)
     response = HttpResponse(buffer.read(), content_type='application/pdf')
-    response['Content-Disposition'] = (
-        f'attachment; filename="{ref_doc}_{user.email.split("@")[0]}.pdf"'
-    )
+    response['Content-Disposition'] = f'attachment; filename="{ref_doc}_{user.email.split("@")[0]}.pdf"'
     return response
 
 
@@ -857,6 +749,10 @@ def commandes(request):
         'en_cours': Order.objects.filter(statut='EN_COURS').count(),
         'termine': Order.objects.filter(statut='TERMINE').count(),
         'annule': Order.objects.filter(statut='ANNULE').count(),
+        # ← commandes terminées avec fonds encore en escrow
+        'a_valider': Payment.objects.filter(
+            statut='SUCCES', fonds_bloques=True, order__statut='TERMINE'
+        ).count(),
     }
     ctx = {'commandes': cmds, 'stats': stats, 'statut': statut, 'q': q, 'page': 'commandes'}
     ctx.update(_global_ctx())
@@ -865,7 +761,10 @@ def commandes(request):
 
 @admin_required
 def detail_commande(request, commande_id):
-    commande = get_object_or_404(Order.objects.select_related('client', 'prestatire', 'service'), id=commande_id)
+    commande = get_object_or_404(
+        Order.objects.select_related('client', 'prestatire', 'service'),
+        id=commande_id
+    )
     historique = commande.historique_statuts.all().order_by('date')
     negotiations = commande.negotiations.all().order_by('date')
     try:
@@ -876,9 +775,88 @@ def detail_commande(request, commande_id):
         review = commande.review
     except Exception:
         review = None
-    ctx = {'commande': commande, 'historique': historique, 'negotiations': negotiations, 'paiement': paiement, 'review': review, 'page': 'commandes'}
+
+    ctx = {
+        'commande': commande,
+        'historique': historique,
+        'negotiations': negotiations,
+        'paiement': paiement,
+        'review': review,
+        'page': 'commandes',
+    }
     ctx.update(_global_ctx())
     return render(request, 'admin_dashboard/detail_commande.html', ctx)
+
+
+# ── Validation fin de service (virement escrow → wallet prestataire) ──────────
+
+@admin_required
+def valider_fin_service(request, commande_id):
+    """
+    L'admin valide la fin de service et declenche le virement
+    des fonds bloques vers le wallet du prestataire.
+    Conditions : commande TERMINE + paiement SUCCES + fonds encore bloques.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Methode non autorisee'}, status=405)
+
+    from django.db import transaction as db_transaction
+    from decimal import Decimal
+    from payments.views import crediter_wallet
+    from notifications.utils import notif_virement_effectue
+
+    commande = get_object_or_404(Order, id=commande_id)
+
+    if commande.statut != Order.STATUT_TERMINE:
+        return JsonResponse(
+            {'error': f'La commande doit etre au statut TERMINE (actuel : {commande.statut})'},
+            status=400
+        )
+
+    try:
+        paiement = commande.payment
+    except Exception:
+        return JsonResponse(
+            {'error': 'Aucun paiement trouve pour cette commande'},
+            status=400
+        )
+
+    if paiement.statut != 'SUCCES':
+        return JsonResponse(
+            {'error': 'Le paiement n est pas confirme (statut != SUCCES)'},
+            status=400
+        )
+
+    if not paiement.fonds_bloques:
+        return JsonResponse(
+            {'error': 'Les fonds ont deja ete vires au prestataire'},
+            status=400
+        )
+
+    with db_transaction.atomic():
+        crediter_wallet(
+            commande.prestatire.user,
+            paiement.montant_prestatire,
+            f'Virement commande #{commande.id} valide par admin'
+        )
+        paiement.fonds_bloques = False
+        paiement.date_virement = timezone.now()
+        paiement.save()
+
+        try:
+            notif_virement_effectue(paiement)
+        except Exception:
+            pass
+
+    return JsonResponse({
+        'success': True,
+        'message': (
+            f'Virement de {paiement.montant_prestatire} FCFA effectue vers le wallet '
+            f'de {commande.prestatire.prenom} {commande.prestatire.nom}'
+        ),
+        'montant_vire': str(paiement.montant_prestatire),
+        'prestataire': f'{commande.prestatire.prenom} {commande.prestatire.nom}',
+    })
 
 
 # ── Paiements ─────────────────────────────────────────────────
@@ -887,14 +865,29 @@ def detail_commande(request, commande_id):
 def paiements(request):
     statut = request.GET.get('statut', '')
     methode = request.GET.get('methode', '')
+    fonds = request.GET.get('fonds', '')
     pays = Payment.objects.select_related('client', 'order', 'order__service').order_by('-date_paiement')
     if statut:
         pays = pays.filter(statut=statut)
     if methode:
         pays = pays.filter(methode=methode)
+    if fonds == 'bloques':
+        pays = pays.filter(fonds_bloques=True)
+    elif fonds == 'liberes':
+        pays = pays.filter(fonds_bloques=False)
     total_succes = Payment.objects.filter(statut='SUCCES').aggregate(t=Sum('montant_total'))['t'] or 0
     commission_totale = Payment.objects.filter(statut='SUCCES').aggregate(t=Sum('commission_plateforme'))['t'] or 0
-    ctx = {'paiements': pays, 'total_succes': total_succes, 'commission_totale': commission_totale, 'statut': statut, 'methode': methode, 'page': 'paiements'}
+    fonds_bloques_total = Payment.objects.filter(statut='SUCCES', fonds_bloques=True).aggregate(t=Sum('montant_prestatire'))['t'] or 0
+    ctx = {
+        'paiements': pays,
+        'total_succes': total_succes,
+        'commission_totale': commission_totale,
+        'fonds_bloques_total': fonds_bloques_total,
+        'statut': statut,
+        'methode': methode,
+        'fonds': fonds,
+        'page': 'paiements',
+    }
     ctx.update(_global_ctx())
     return render(request, 'admin_dashboard/paiements.html', ctx)
 
@@ -1181,7 +1174,6 @@ def messagerie(request):
         )
     total_messages = Message.objects.count()
     total_non_lus = Message.objects.filter(is_read=False).count()
-    # Messages signalés (is_deleted utilisé comme flag suspect)
     messages_suspects = Message.objects.filter(is_deleted=True).select_related(
         'conversation__client', 'conversation__prestatire', 'expediteur'
     ).order_by('-date_envoi')[:20]
@@ -1196,10 +1188,7 @@ def messagerie(request):
 
 @admin_required
 def detail_conversation(request, conv_id):
-    conv = get_object_or_404(
-        Conversation.objects.select_related('client', 'prestatire'),
-        id=conv_id
-    )
+    conv = get_object_or_404(Conversation.objects.select_related('client', 'prestatire'), id=conv_id)
     messages_list = conv.messages.select_related('expediteur').order_by('date_envoi')
     ctx = {'conv': conv, 'messages_list': messages_list, 'page': 'messagerie'}
     ctx.update(_global_ctx())
@@ -1208,13 +1197,11 @@ def detail_conversation(request, conv_id):
 
 @admin_required
 def signaler_message(request, conv_id):
-    """Marquer un message comme suspect (is_deleted=True utilisé comme flag)."""
     if request.method == 'POST':
         message_id = request.POST.get('message_id')
         msg = get_object_or_404(Message, id=message_id, conversation_id=conv_id)
         msg.is_deleted = True
         msg.save()
-        # Créer un signalement automatique
         try:
             Report.objects.create(
                 reporter=request.user,
@@ -1231,7 +1218,6 @@ def signaler_message(request, conv_id):
 
 @admin_required
 def ecrire_utilisateurs(request):
-    """Envoyer un message (notification) à tous ou certains utilisateurs."""
     if request.method == 'POST':
         titre = request.POST.get('titre', '').strip()
         contenu = request.POST.get('contenu', '').strip()
@@ -1240,11 +1226,9 @@ def ecrire_utilisateurs(request):
         if not titre or not contenu:
             return JsonResponse({'error': 'Titre et contenu obligatoires'}, status=400)
         if user_id:
-            # Message individuel
             user = get_object_or_404(User, id=user_id)
             Notification.objects.create(destinataire=user, type='NOUVEAU_MESSAGE', titre=titre, contenu=contenu)
             return JsonResponse({'success': True, 'message': f'Message envoyé à {user.email}'})
-        # Message groupé
         users = User.objects.filter(is_active=True)
         if cible == 'clients':
             users = users.filter(role='client')
@@ -1253,7 +1237,6 @@ def ecrire_utilisateurs(request):
         notifs = [Notification(destinataire=u, type='NOUVEAU_MESSAGE', titre=titre, contenu=contenu) for u in users]
         Notification.objects.bulk_create(notifs)
         return JsonResponse({'success': True, 'message': f'{len(notifs)} message(s) envoyé(s)'})
-    # GET → page dédiée
     all_users = User.objects.filter(is_active=True).order_by('role', 'email')
     ctx = {'all_users': all_users, 'page': 'messagerie'}
     ctx.update(_global_ctx())
@@ -1264,38 +1247,19 @@ def ecrire_utilisateurs(request):
 
 @admin_required
 def wallet_plateforme(request):
-    """
-    Vue du portefeuille global de la plateforme Proxim.
-    Agrège toutes les commissions perçues, retraits, et soldes.
-    """
-    # Revenus totaux (commissions)
     revenus_total = Payment.objects.filter(statut='SUCCES').aggregate(t=Sum('commission_plateforme'))['t'] or 0
-
-    # Retraits traités (argent sorti)
     retraits_total = Withdrawal.objects.filter(statut='TRAITE').aggregate(t=Sum('montant'))['t'] or 0
     retraits_en_attente_montant = Withdrawal.objects.filter(statut='EN_ATTENTE').aggregate(t=Sum('montant'))['t'] or 0
-
-    # Volume total des paiements
     volume_total = Payment.objects.filter(statut='SUCCES').aggregate(t=Sum('montant_total'))['t'] or 0
-
-    # Solde théorique de la plateforme
     solde_plateforme = float(volume_total) - float(retraits_total)
+    # ← fonds encore en escrow (pas encore virés aux prestataires)
+    fonds_en_escrow = Payment.objects.filter(statut='SUCCES', fonds_bloques=True).aggregate(t=Sum('montant_prestatire'))['t'] or 0
 
-    # Wallets utilisateurs (soldes prestataires)
     wallets = Wallet.objects.select_related('user').order_by('-solde')
     solde_total_prestataires = wallets.aggregate(t=Sum('solde'))['t'] or 0
+    transactions_recentes = Transaction.objects.select_related('wallet__user').order_by('-date')[:20]
+    paiements_recents = Payment.objects.filter(statut='SUCCES').select_related('client', 'order__service').order_by('-date_paiement')[:15]
 
-    # Transactions récentes
-    transactions_recentes = Transaction.objects.select_related(
-        'wallet__user'
-    ).order_by('-date')[:20]
-
-    # Paiements récents
-    paiements_recents = Payment.objects.filter(statut='SUCCES').select_related(
-        'client', 'order__service'
-    ).order_by('-date_paiement')[:15]
-
-    # Stats par mois (6 derniers mois)
     today = date.today()
     stats_mois = []
     for i in range(5, -1, -1):
@@ -1322,6 +1286,7 @@ def wallet_plateforme(request):
         'retraits_en_attente_montant': retraits_en_attente_montant,
         'volume_total': volume_total,
         'solde_plateforme': solde_plateforme,
+        'fonds_en_escrow': fonds_en_escrow,
         'wallets': wallets,
         'solde_total_prestataires': solde_total_prestataires,
         'transactions_recentes': transactions_recentes,

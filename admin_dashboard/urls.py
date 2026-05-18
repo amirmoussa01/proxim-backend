@@ -27,6 +27,7 @@ urlpatterns = [
     # Commandes
     path('commandes/', views.commandes, name='commandes'),
     path('commandes/<int:commande_id>/detail/', views.detail_commande, name='detail_commande'),
+    path('commandes/<int:commande_id>/valider-fin-service/', views.valider_fin_service, name='valider_fin_service'),  # ← NOUVEAU
 
     # Paiements
     path('paiements/', views.paiements, name='paiements'),
