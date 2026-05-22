@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Politique de confidentialité — Proxim</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:    #0D1B2A;
+      --gold:       #F4A922;
+      --gold-light: #FDE9B8;
+      --bg:         #F5F5F5;
+      --card:       #FFFFFF;
+      --text:       #1A1A1A;
+      --muted:      #6B7280;
+      --divider:    #E5E7EB;
+      --success:    #10B981;
+      --radius:     14px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--primary);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 16px rgba(0,0,0,.3);
+    }
+    .header-inner {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+    .logo span { color: var(--gold); }
+    .header-badge {
+      background: var(--gold);
+      color: var(--primary);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #0a1628 0%, var(--primary) 60%, #162d47 100%);
+      padding: 52px 24px 44px;
+      text-align: center;
+    }
+    .hero-icon-wrap {
+      width: 68px; height: 68px;
+      background: var(--gold);
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .hero-icon-wrap i { font-size: 30px; color: var(--primary); }
+    .hero h1 {
+      color: #fff;
+      font-size: clamp(22px, 4vw, 30px);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 10px;
+    }
+    .hero-desc { color: rgba(255,255,255,.6); font-size: 14px; max-width: 520px; margin: 0 auto; }
+    .hero-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 20px;
+      padding: 6px 16px;
+      margin-top: 18px;
+      font-size: 12px;
+      color: rgba(255,255,255,.65);
+    }
+    .hero-meta i { color: var(--gold); font-size: 13px; }
+
+    .container { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    .toc {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--divider);
+      padding: 24px 28px;
+      margin-bottom: 28px;
+    }
+    .toc-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 16px;
+    }
+    .toc-title i { color: var(--gold); font-size: 15px; }
+    .toc ol { padding-left: 18px; display: flex; flex-direction: column; gap: 7px; }
+    .toc a {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color .15s;
+    }
+    .toc a:hover { color: var(--gold); }
+
+    .section {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--divider);
+      padding: 28px 32px;
+      margin-bottom: 16px;
+      scroll-margin-top: 80px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid var(--gold);
+    }
+    .section-num {
+      min-width: 36px; height: 36px;
+      background: var(--primary);
+      color: var(--gold);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .section-icon {
+      width: 36px; height: 36px;
+      background: var(--gold-light);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .section-icon i { font-size: 17px; color: var(--primary); }
+    .section h2 { font-size: 16px; font-weight: 700; color: var(--primary); }
+    .section p { font-size: 14px; color: #374151; margin-bottom: 12px; line-height: 1.7; }
+    .section p:last-child { margin-bottom: 0; }
+    .section ul {
+      padding-left: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      margin-bottom: 14px;
+    }
+    .section ul li {
+      font-size: 14px;
+      color: #374151;
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+    }
+    .section ul li > i {
+      color: var(--gold);
+      font-size: 13px;
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+
+    .highlight {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: var(--gold-light);
+      border-left: 4px solid var(--gold);
+      border-radius: 0 10px 10px 0;
+      padding: 14px 18px;
+      margin: 16px 0;
+      font-size: 13.5px;
+      color: #78350f;
+      font-weight: 500;
+      line-height: 1.6;
+    }
+    .highlight i { color: var(--gold); font-size: 18px; margin-top: 1px; flex-shrink: 0; }
+
+    .info-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: #EFF6FF;
+      border-left: 4px solid #3B82F6;
+      border-radius: 0 10px 10px 0;
+      padding: 14px 18px;
+      margin: 16px 0;
+      font-size: 13.5px;
+      color: #1E40AF;
+      line-height: 1.6;
+    }
+    .info-box i { color: #3B82F6; font-size: 18px; margin-top: 1px; flex-shrink: 0; }
+
+    /* ── Chips données ── */
+    .data-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .data-chip {
+      background: var(--bg);
+      border: 1px solid var(--divider);
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .data-chip i { font-size: 16px; color: var(--gold); flex-shrink: 0; }
+
+    /* ── Table droits ── */
+    .rights-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 13.5px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--divider);
+    }
+    .rights-table th {
+      background: var(--primary);
+      color: var(--gold);
+      padding: 11px 16px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .rights-table td {
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--divider);
+      color: #374151;
+      vertical-align: middle;
+    }
+    .rights-table tr:last-child td { border-bottom: none; }
+    .rights-table tr:nth-child(even) td { background: var(--bg); }
+    .rights-check i { color: var(--success); font-size: 17px; }
+
+    .contact-box {
+      background: var(--primary);
+      border-radius: var(--radius);
+      padding: 32px;
+      margin-top: 32px;
+      text-align: center;
+    }
+    .contact-icon {
+      width: 52px; height: 52px;
+      background: rgba(244,169,34,.15);
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+    .contact-icon i { font-size: 22px; color: var(--gold); }
+    .contact-box h3 { color: #fff; font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .contact-box p { color: rgba(255,255,255,.6); font-size: 14px; margin-bottom: 20px; }
+    .contact-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--gold);
+      color: var(--primary);
+      font-weight: 700;
+      font-size: 14px;
+      padding: 11px 26px;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: opacity .15s;
+    }
+    .contact-btn:hover { opacity: .9; }
+
+    footer {
+      background: var(--primary);
+      text-align: center;
+      padding: 20px 24px;
+      color: rgba(255,255,255,.4);
+      font-size: 12px;
+    }
+    footer span { color: var(--gold); font-weight: 600; }
+
+    @media (max-width: 600px) {
+      .section { padding: 20px 16px; }
+      .toc { padding: 18px 16px; }
+      .contact-box { padding: 24px 16px; }
+      .data-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo">Proxim<span>.</span></div>
+    <div class="header-badge">Document légal</div>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-icon-wrap">
+    <i class="bi bi-shield-lock-fill"></i>
+  </div>
+  <h1>Politique de confidentialité</h1>
+  <p class="hero-desc">Nous prenons la protection de vos données personnelles très au sérieux. Voici comment nous les collectons, utilisons et protégeons.</p>
+  <div class="hero-meta">
+    <i class="bi bi-calendar3"></i>
+    Dernière mise à jour : Janvier 2025
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="toc">
+    <div class="toc-title">
+      <i class="bi bi-list-ul"></i>
+      Sommaire
+    </div>
+    <ol>
+      <li><a href="#s1">Qui sommes-nous ?</a></li>
+      <li><a href="#s2">Données collectées</a></li>
+      <li><a href="#s3">Finalités du traitement</a></li>
+      <li><a href="#s4">Base légale du traitement</a></li>
+      <li><a href="#s5">Partage des données</a></li>
+      <li><a href="#s6">Conservation des données</a></li>
+      <li><a href="#s7">Sécurité des données</a></li>
+      <li><a href="#s8">Vos droits</a></li>
+      <li><a href="#s9">Cookies et traceurs</a></li>
+      <li><a href="#s10">Données des mineurs</a></li>
+      <li><a href="#s11">Transferts internationaux</a></li>
+      <li><a href="#s12">Modifications</a></li>
+      <li><a href="#s13">Nous contacter</a></li>
+    </ol>
+  </div>
+
+  <!-- 1 -->
+  <div class="section" id="s1">
+    <div class="section-header">
+      <div class="section-num">1</div>
+      <div class="section-icon"><i class="bi bi-building-fill"></i></div>
+      <h2>Qui sommes-nous ?</h2>
+    </div>
+    <p>Proxim est une plateforme de mise en relation de services à domicile développée par <strong>GETECH LAB (GIOVERI ENTREPRISE TECHNOLOGY)</strong>, dont le siège est situé à Védoko, Cotonou, Bénin.</p>
+    <p>En tant que responsable du traitement de vos données personnelles, nous nous engageons à traiter vos informations conformément aux lois et réglementations applicables.</p>
+    <div class="highlight">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      En utilisant Proxim, vous acceptez les pratiques décrites dans cette politique. Si vous n'êtes pas d'accord, veuillez ne pas utiliser notre application.
+    </div>
+  </div>
+
+  <!-- 2 -->
+  <div class="section" id="s2">
+    <div class="section-header">
+      <div class="section-num">2</div>
+      <div class="section-icon"><i class="bi bi-database-fill"></i></div>
+      <h2>Données collectées</h2>
+    </div>
+
+    <p><strong>Données d'identification et de contact</strong></p>
+    <div class="data-grid">
+      <div class="data-chip"><i class="bi bi-person-fill"></i> Nom et prénom</div>
+      <div class="data-chip"><i class="bi bi-envelope-fill"></i> Adresse email</div>
+      <div class="data-chip"><i class="bi bi-phone-fill"></i> Numéro de téléphone</div>
+      <div class="data-chip"><i class="bi bi-geo-alt-fill"></i> Adresse postale</div>
+      <div class="data-chip"><i class="bi bi-image-fill"></i> Photo de profil</div>
+    </div>
+
+    <p><strong>Données de vérification d'identité (prestataires)</strong></p>
+    <div class="data-grid">
+      <div class="data-chip"><i class="bi bi-card-heading"></i> Pièce d'identité</div>
+      <div class="data-chip"><i class="bi bi-file-earmark-fill"></i> Justificatifs professionnels</div>
+    </div>
+
+    <p><strong>Données d'utilisation</strong></p>
+    <div class="data-grid">
+      <div class="data-chip"><i class="bi bi-geo-fill"></i> Localisation GPS</div>
+      <div class="data-chip"><i class="bi bi-chat-fill"></i> Messages échangés</div>
+      <div class="data-chip"><i class="bi bi-bag-fill"></i> Historique commandes</div>
+      <div class="data-chip"><i class="bi bi-star-fill"></i> Avis et notations</div>
+      <div class="data-chip"><i class="bi bi-bar-chart-fill"></i> Données de navigation</div>
+    </div>
+
+    <p><strong>Données financières</strong></p>
+    <div class="data-grid">
+      <div class="data-chip"><i class="bi bi-receipt"></i> Historique transactions</div>
+      <div class="data-chip"><i class="bi bi-phone-fill"></i> Numéro Mobile Money</div>
+      <div class="data-chip"><i class="bi bi-wallet2"></i> Solde portefeuille</div>
+    </div>
+
+    <div class="highlight">
+      <i class="bi bi-lock-fill"></i>
+      Nous ne stockons jamais vos informations de carte bancaire. Les paiements sont traités directement par nos partenaires certifiés (KKiaPay, FedaPay).
+    </div>
+  </div>
+
+  <!-- 3 -->
+  <div class="section" id="s3">
+    <div class="section-header">
+      <div class="section-num">3</div>
+      <div class="section-icon"><i class="bi bi-bullseye"></i></div>
+      <h2>Finalités du traitement</h2>
+    </div>
+    <p>Vos données sont utilisées pour les finalités suivantes :</p>
+    <ul>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Création et gestion de compte :</strong> authentification, profil, préférences.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Mise en relation :</strong> afficher les services pertinents selon votre localisation et vos besoins.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Traitement des commandes :</strong> gestion du cycle complet de commande, de la demande au paiement.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Paiements et portefeuille :</strong> traitement sécurisé des transactions et gestion du portefeuille prestataire.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Communication :</strong> notifications push, emails transactionnels et alertes de sécurité.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Vérification d'identité (KYC) :</strong> validation des documents des prestataires pour garantir la confiance.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Amélioration du service :</strong> analyse anonymisée des usages.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Support client :</strong> traitement de vos demandes, réclamations et signalements.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Conformité légale :</strong> respect de nos obligations légales et réglementaires.</span></li>
+    </ul>
+  </div>
+
+  <!-- 4 -->
+  <div class="section" id="s4">
+    <div class="section-header">
+      <div class="section-num">4</div>
+      <div class="section-icon"><i class="bi bi-journal-check"></i></div>
+      <h2>Base légale du traitement</h2>
+    </div>
+    <ul>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Exécution du contrat :</strong> traitement nécessaire à la fourniture de nos services (commandes, paiements, messagerie).</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Consentement :</strong> pour les communications marketing et la géolocalisation optionnelle.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Intérêt légitime :</strong> prévention de la fraude, amélioration du service, sécurité.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Obligation légale :</strong> conservation des données financières et fiscales.</span></li>
+    </ul>
+  </div>
+
+  <!-- 5 -->
+  <div class="section" id="s5">
+    <div class="section-header">
+      <div class="section-num">5</div>
+      <div class="section-icon"><i class="bi bi-share-fill"></i></div>
+      <h2>Partage des données</h2>
+    </div>
+    <p>Vos données peuvent être partagées avec les tiers suivants dans le strict cadre de nos services :</p>
+    <ul>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Prestataires de paiement :</strong> KKiaPay et FedaPay pour le traitement sécurisé des transactions.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Services cloud :</strong> Cloudinary pour le stockage sécurisé de vos photos et documents.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Hébergement :</strong> CleverCloud pour l'infrastructure serveur (Union Européenne).</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Notifications push :</strong> Firebase (Google) pour l'envoi de notifications en temps réel.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Emails :</strong> Brevo pour les emails transactionnels (vérification, alertes).</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Autorités compétentes :</strong> uniquement sur réquisition légale.</span></li>
+    </ul>
+    <div class="highlight">
+      <i class="bi bi-hand-thumbs-up-fill"></i>
+      Nous ne vendons, ne louons et ne commercialisons jamais vos données personnelles à des tiers à des fins publicitaires ou commerciales.
+    </div>
+  </div>
+
+  <!-- 6 -->
+  <div class="section" id="s6">
+    <div class="section-header">
+      <div class="section-num">6</div>
+      <div class="section-icon"><i class="bi bi-clock-history"></i></div>
+      <h2>Conservation des données</h2>
+    </div>
+    <ul>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Données de compte actif :</strong> pendant toute la durée d'utilisation de la plateforme.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Après suppression de compte :</strong> 30 jours pour la récupération éventuelle, puis suppression définitive.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Historique des transactions :</strong> 5 ans conformément aux obligations légales comptables et fiscales.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Documents KYC :</strong> 3 ans après la fin de la relation commerciale.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Messages :</strong> conservés pendant la durée du compte, supprimés avec lui.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Logs de sécurité :</strong> 12 mois.</span></li>
+    </ul>
+  </div>
+
+  <!-- 7 -->
+  <div class="section" id="s7">
+    <div class="section-header">
+      <div class="section-num">7</div>
+      <div class="section-icon"><i class="bi bi-shield-fill-check"></i></div>
+      <h2>Sécurité des données</h2>
+    </div>
+    <ul>
+      <li><i class="bi bi-diamond-fill"></i><span>Chiffrement des communications (HTTPS/TLS).</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Authentification par token JWT avec expiration et rafraîchissement automatique.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Stockage des mots de passe avec hachage sécurisé (bcrypt).</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Accès aux données restreint au personnel autorisé uniquement.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Hébergement chez des prestataires certifiés ISO 27001.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Surveillance continue et alertes de sécurité.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Vérification d'email obligatoire à l'inscription.</span></li>
+    </ul>
+    <div class="info-box">
+      <i class="bi bi-info-circle-fill"></i>
+      <span>En cas de violation de données susceptible d'engager un risque élevé pour vos droits, nous vous en informerons dans les meilleurs délais.</span>
+    </div>
+  </div>
+
+  <!-- 8 -->
+  <div class="section" id="s8">
+    <div class="section-header">
+      <div class="section-num">8</div>
+      <div class="section-icon"><i class="bi bi-person-check-fill"></i></div>
+      <h2>Vos droits</h2>
+    </div>
+    <p>Conformément aux réglementations applicables, vous disposez des droits suivants :</p>
+    <table class="rights-table">
+      <tr>
+        <th>Droit</th>
+        <th>Description</th>
+        <th style="text-align:center;">Disponible</th>
+      </tr>
+      <tr>
+        <td><strong>Accès</strong></td>
+        <td>Consulter toutes vos données personnelles que nous détenons.</td>
+        <td class="rights-check" style="text-align:center;"><i class="bi bi-check-circle-fill"></i></td>
+      </tr>
+      <tr>
+        <td><strong>Rectification</strong></td>
+        <td>Corriger ou mettre à jour vos informations inexactes.</td>
+        <td class="rights-check" style="text-align:center;"><i class="bi bi-check-circle-fill"></i></td>
+      </tr>
+      <tr>
+        <td><strong>Suppression</strong></td>
+        <td>Demander l'effacement de vos données personnelles.</td>
+        <td class="rights-check" style="text-align:center;"><i class="bi bi-check-circle-fill"></i></td>
+      </tr>
+      <tr>
+        <td><strong>Portabilité</strong></td>
+        <td>Récupérer vos données dans un format structuré et lisible.</td>
+        <td class="rights-check" style="text-align:center;"><i class="bi bi-check-circle-fill"></i></td>
+      </tr>
+      <tr>
+        <td><strong>Opposition</strong></td>
+        <td>Vous opposer à certains traitements (ex : marketing).</td>
+        <td class="rights-check" style="text-align:center;"><i class="bi bi-check-circle-fill"></i></td>
+      </tr>
+      <tr>
+        <td><strong>Limitation</strong></td>
+        <td>Restreindre le traitement de vos données dans certains cas.</td>
+        <td class="rights-check" style="text-align:center;"><i class="bi bi-check-circle-fill"></i></td>
+      </tr>
+    </table>
+    <p>Pour exercer ces droits, envoyez votre demande à <strong>support@proxim.bj</strong>. Nous répondrons dans un délai de 30 jours.</p>
+    <p>Vous pouvez également supprimer votre compte directement via <em>Profil → Paramètres → Supprimer mon compte</em>.</p>
+  </div>
+
+  <!-- 9 -->
+  <div class="section" id="s9">
+    <div class="section-header">
+      <div class="section-num">9</div>
+      <div class="section-icon"><i class="bi bi-cookie"></i></div>
+      <h2>Cookies et traceurs</h2>
+    </div>
+    <p>L'application mobile Proxim n'utilise pas de cookies de navigation traditionnels. Cependant, nous utilisons des identifiants techniques similaires :</p>
+    <ul>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Token JWT :</strong> stocké localement sur votre appareil pour maintenir votre session, effacé à la déconnexion.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Token Firebase (FCM) :</strong> identifiant de votre appareil pour l'envoi de notifications push.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Cache local :</strong> pour améliorer les performances en mode hors ligne.</span></li>
+    </ul>
+    <p>Ces éléments sont strictement nécessaires au fonctionnement de l'application et ne sont pas utilisés à des fins publicitaires.</p>
+  </div>
+
+  <!-- 10 -->
+  <div class="section" id="s10">
+    <div class="section-header">
+      <div class="section-num">10</div>
+      <div class="section-icon"><i class="bi bi-person-x-fill"></i></div>
+      <h2>Données des mineurs</h2>
+    </div>
+    <p>Proxim est une plateforme réservée aux personnes majeures (18 ans et plus).</p>
+    <p>Nous ne collectons pas sciemment des données personnelles de mineurs. Si vous pensez qu'un mineur a créé un compte, veuillez nous contacter immédiatement à <strong>support@proxim.bj</strong>.</p>
+  </div>
+
+  <!-- 11 -->
+  <div class="section" id="s11">
+    <div class="section-header">
+      <div class="section-num">11</div>
+      <div class="section-icon"><i class="bi bi-globe2"></i></div>
+      <h2>Transferts internationaux</h2>
+    </div>
+    <p>Certains de nos prestataires techniques sont basés en dehors du Bénin :</p>
+    <ul>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>CleverCloud :</strong> hébergement en France (Union Européenne) — niveau de protection adéquat.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Google Firebase :</strong> États-Unis — transfert encadré par les clauses contractuelles types.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Cloudinary :</strong> États-Unis — transfert encadré par des garanties appropriées.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Brevo :</strong> France (Union Européenne) — niveau de protection adéquat.</span></li>
+    </ul>
+  </div>
+
+  <!-- 12 -->
+  <div class="section" id="s12">
+    <div class="section-header">
+      <div class="section-num">12</div>
+      <div class="section-icon"><i class="bi bi-pencil-fill"></i></div>
+      <h2>Modifications</h2>
+    </div>
+    <p>Nous pouvons modifier cette politique à tout moment pour refléter les évolutions de nos pratiques ou les exigences légales.</p>
+    <p>En cas de modification substantielle, nous vous informerons par notification push ou email au moins 7 jours avant l'entrée en vigueur.</p>
+    <p>En continuant à utiliser Proxim après une modification, vous acceptez la politique mise à jour.</p>
+  </div>
+
+  <!-- 13 -->
+  <div class="section" id="s13">
+    <div class="section-header">
+      <div class="section-num">13</div>
+      <div class="section-icon"><i class="bi bi-envelope-fill"></i></div>
+      <h2>Nous contacter</h2>
+    </div>
+    <ul>
+      <li><i class="bi bi-envelope-fill"></i><span><strong>Email :</strong> support@proxim.bj</span></li>
+      <li><i class="bi bi-shield-fill"></i><span><strong>DPO :</strong> dpo@proxim.bj</span></li>
+      <li><i class="bi bi-geo-alt-fill"></i><span><strong>Adresse :</strong> GETECH LAB, Védoko, Cotonou, Bénin</span></li>
+      <li><i class="bi bi-phone-fill"></i><span><strong>Via l'application :</strong> Profil → Aide et support</span></li>
+    </ul>
+    <p>Nous nous engageons à répondre à toute demande dans un délai maximum de 30 jours calendaires.</p>
+  </div>
+
+  <div class="contact-box">
+    <div class="contact-icon">
+      <i class="bi bi-shield-lock-fill"></i>
+    </div>
+    <h3>Vos données vous appartiennent.</h3>
+    <p>Notre équipe est à votre disposition pour toute question sur la protection de vos données personnelles.</p>
+    <a href="mailto:support@proxim.bj" class="contact-btn">
+      <i class="bi bi-envelope-fill"></i>
+      Contacter le DPO
+    </a>
+  </div>
+
+</div>
+
+<footer>
+  &copy; 2025 <span>Proxim</span> — GETECH LAB, Cotonou, Bénin. Tous droits réservés.
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Conditions d'utilisation — Proxim</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:    #0D1B2A;
+      --gold:       #F4A922;
+      --gold-light: #FDE9B8;
+      --bg:         #F5F5F5;
+      --card:       #FFFFFF;
+      --text:       #1A1A1A;
+      --muted:      #6B7280;
+      --divider:    #E5E7EB;
+      --success:    #10B981;
+      --error:      #EF4444;
+      --radius:     14px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--primary);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 16px rgba(0,0,0,.3);
+    }
+    .header-inner {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+    .logo span { color: var(--gold); }
+    .header-badge {
+      background: var(--gold);
+      color: var(--primary);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.3px;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, var(--primary) 0%, #162d47 100%);
+      padding: 52px 24px 44px;
+      text-align: center;
+    }
+    .hero-icon-wrap {
+      width: 68px;
+      height: 68px;
+      background: var(--gold);
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .hero-icon-wrap i { font-size: 30px; color: var(--primary); }
+    .hero h1 {
+      color: #fff;
+      font-size: clamp(22px, 4vw, 30px);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 10px;
+    }
+    .hero-desc { color: rgba(255,255,255,.6); font-size: 14px; max-width: 500px; margin: 0 auto; }
+    .hero-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 20px;
+      padding: 6px 16px;
+      margin-top: 18px;
+      font-size: 12px;
+      color: rgba(255,255,255,.65);
+    }
+    .hero-meta i { color: var(--gold); font-size: 13px; }
+
+    /* ── Layout ── */
+    .container { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── TOC ── */
+    .toc {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--divider);
+      padding: 24px 28px;
+      margin-bottom: 28px;
+    }
+    .toc-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 16px;
+    }
+    .toc-title i { color: var(--gold); font-size: 15px; }
+    .toc ol { padding-left: 18px; display: flex; flex-direction: column; gap: 7px; }
+    .toc a {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color .15s;
+    }
+    .toc a:hover { color: var(--gold); }
+
+    /* ── Sections ── */
+    .section {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--divider);
+      padding: 28px 32px;
+      margin-bottom: 16px;
+      scroll-margin-top: 80px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid var(--gold);
+    }
+    .section-num {
+      min-width: 36px;
+      height: 36px;
+      background: var(--primary);
+      color: var(--gold);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .section-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--gold-light);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .section-icon i { font-size: 17px; color: var(--primary); }
+    .section h2 { font-size: 16px; font-weight: 700; color: var(--primary); }
+
+    .section p { font-size: 14px; color: #374151; margin-bottom: 12px; line-height: 1.7; }
+    .section p:last-child { margin-bottom: 0; }
+    .section ul {
+      padding-left: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      margin-bottom: 14px;
+    }
+    .section ul li {
+      font-size: 14px;
+      color: #374151;
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+    }
+    .section ul li i {
+      color: var(--gold);
+      font-size: 13px;
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+
+    /* ── Highlight ── */
+    .highlight {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: var(--gold-light);
+      border-left: 4px solid var(--gold);
+      border-radius: 0 10px 10px 0;
+      padding: 14px 18px;
+      margin: 16px 0;
+      font-size: 13.5px;
+      color: #78350f;
+      font-weight: 500;
+      line-height: 1.6;
+    }
+    .highlight i { color: var(--gold); font-size: 18px; margin-top: 1px; flex-shrink: 0; }
+
+    /* ── Info box ── */
+    .info-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: #EFF6FF;
+      border-left: 4px solid #3B82F6;
+      border-radius: 0 10px 10px 0;
+      padding: 14px 18px;
+      margin: 16px 0;
+      font-size: 13.5px;
+      color: #1E40AF;
+      line-height: 1.6;
+    }
+    .info-box i { color: #3B82F6; font-size: 18px; margin-top: 1px; flex-shrink: 0; }
+
+    /* ── Contact box ── */
+    .contact-box {
+      background: var(--primary);
+      border-radius: var(--radius);
+      padding: 32px;
+      margin-top: 32px;
+      text-align: center;
+    }
+    .contact-icon {
+      width: 52px; height: 52px;
+      background: rgba(244,169,34,.15);
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+    .contact-icon i { font-size: 22px; color: var(--gold); }
+    .contact-box h3 { color: #fff; font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .contact-box p { color: rgba(255,255,255,.6); font-size: 14px; margin-bottom: 20px; }
+    .contact-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--gold);
+      color: var(--primary);
+      font-weight: 700;
+      font-size: 14px;
+      padding: 11px 26px;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: opacity .15s;
+    }
+    .contact-btn:hover { opacity: .9; }
+
+    /* ── Footer ── */
+    footer {
+      background: var(--primary);
+      text-align: center;
+      padding: 20px 24px;
+      color: rgba(255,255,255,.4);
+      font-size: 12px;
+    }
+    footer span { color: var(--gold); font-weight: 600; }
+
+    @media (max-width: 600px) {
+      .section { padding: 20px 16px; }
+      .toc { padding: 18px 16px; }
+      .contact-box { padding: 24px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="header-inner">
+    <div class="logo">Proxim<span>.</span></div>
+    <div class="header-badge">Document légal</div>
+  </div>
+</header>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <div class="hero-icon-wrap">
+    <i class="bi bi-file-earmark-text-fill"></i>
+  </div>
+  <h1>Conditions d'utilisation</h1>
+  <p class="hero-desc">Lisez attentivement ces conditions avant d'utiliser la plateforme Proxim.</p>
+  <div class="hero-meta">
+    <i class="bi bi-calendar3"></i>
+    Dernière mise à jour : Janvier 2025
+  </div>
+</div>
+
+<!-- ── Contenu ── -->
+<div class="container">
+
+  <!-- TOC -->
+  <div class="toc">
+    <div class="toc-title">
+      <i class="bi bi-list-ul"></i>
+      Sommaire
+    </div>
+    <ol>
+      <li><a href="#s1">Présentation de Proxim</a></li>
+      <li><a href="#s2">Acceptation des conditions</a></li>
+      <li><a href="#s3">Inscription et comptes</a></li>
+      <li><a href="#s4">Services proposés</a></li>
+      <li><a href="#s5">Obligations des utilisateurs</a></li>
+      <li><a href="#s6">Obligations des prestataires</a></li>
+      <li><a href="#s7">Paiements et transactions</a></li>
+      <li><a href="#s8">Annulations et remboursements</a></li>
+      <li><a href="#s9">Responsabilités</a></li>
+      <li><a href="#s10">Propriété intellectuelle</a></li>
+      <li><a href="#s11">Suspension et résiliation</a></li>
+      <li><a href="#s12">Modifications des conditions</a></li>
+      <li><a href="#s13">Contact</a></li>
+    </ol>
+  </div>
+
+  <!-- 1 -->
+  <div class="section" id="s1">
+    <div class="section-header">
+      <div class="section-num">1</div>
+      <div class="section-icon"><i class="bi bi-info-circle-fill"></i></div>
+      <h2>Présentation de Proxim</h2>
+    </div>
+    <p>Proxim est une plateforme de mise en relation entre clients et prestataires de services à domicile, disponible sous forme d'application mobile et web, développée et opérée par <strong>GETECH LAB</strong> depuis Cotonou, Bénin.</p>
+    <p>La plateforme permet aux clients de rechercher, contacter et commander des services de proximité (ménage, plomberie, électricité, informatique, etc.), et aux prestataires de proposer leurs compétences et de gérer leurs activités professionnelles.</p>
+    <div class="highlight">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      Proxim agit en tant qu'intermédiaire technique uniquement. Nous ne sommes pas partie aux contrats conclus entre clients et prestataires.
+    </div>
+  </div>
+
+  <!-- 2 -->
+  <div class="section" id="s2">
+    <div class="section-header">
+      <div class="section-num">2</div>
+      <div class="section-icon"><i class="bi bi-check-circle-fill"></i></div>
+      <h2>Acceptation des conditions</h2>
+    </div>
+    <p>En créant un compte et en utilisant Proxim, vous acceptez sans réserve les présentes conditions d'utilisation ainsi que notre Politique de confidentialité.</p>
+    <p>Si vous n'acceptez pas ces conditions, vous ne devez pas utiliser la plateforme.</p>
+    <p>L'utilisation de Proxim est réservée aux personnes physiques majeures (18 ans et plus) ou aux personnes morales dûment représentées.</p>
+  </div>
+
+  <!-- 3 -->
+  <div class="section" id="s3">
+    <div class="section-header">
+      <div class="section-num">3</div>
+      <div class="section-icon"><i class="bi bi-person-fill"></i></div>
+      <h2>Inscription et comptes</h2>
+    </div>
+    <p>Pour accéder aux fonctionnalités de Proxim, vous devez créer un compte en fournissant des informations exactes, complètes et à jour.</p>
+    <ul>
+      <li><i class="bi bi-diamond-fill"></i><span>Vous êtes responsable de la confidentialité de vos identifiants de connexion.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Toute activité réalisée depuis votre compte est sous votre responsabilité.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Vous devez nous informer immédiatement de tout accès non autorisé à votre compte.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Un seul compte est autorisé par personne physique.</span></li>
+    </ul>
+    <p>Les prestataires doivent compléter un processus de vérification d'identité (KYC) pour activer leur profil et accéder à toutes les fonctionnalités.</p>
+  </div>
+
+  <!-- 4 -->
+  <div class="section" id="s4">
+    <div class="section-header">
+      <div class="section-num">4</div>
+      <div class="section-icon"><i class="bi bi-grid-fill"></i></div>
+      <h2>Services proposés</h2>
+    </div>
+    <p>Proxim met à disposition :</p>
+    <ul>
+      <li><i class="bi bi-diamond-fill"></i><span>Un moteur de recherche et de filtrage de services par catégorie, localisation et prix.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Un système de messagerie intégré entre clients et prestataires.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Un système de commande, de négociation et de paiement sécurisé.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Un système d'avis et de notation.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Un portefeuille numérique pour les prestataires.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Des notifications push en temps réel.</span></li>
+    </ul>
+    <p>Proxim se réserve le droit de modifier, suspendre ou supprimer tout ou partie des services à tout moment.</p>
+  </div>
+
+  <!-- 5 -->
+  <div class="section" id="s5">
+    <div class="section-header">
+      <div class="section-num">5</div>
+      <div class="section-icon"><i class="bi bi-shield-fill-check"></i></div>
+      <h2>Obligations des utilisateurs</h2>
+    </div>
+    <p>En utilisant Proxim, vous vous engagez à :</p>
+    <ul>
+      <li><i class="bi bi-diamond-fill"></i><span>Fournir des informations véridiques lors de l'inscription et des transactions.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Utiliser la plateforme uniquement à des fins légales et licites.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Ne pas usurper l'identité d'un tiers.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Ne pas publier de contenu offensant, frauduleux, trompeur ou illégal.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Ne pas tenter de contourner les systèmes de paiement de la plateforme.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Respecter les prestataires et clients avec lesquels vous interagissez.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Ne pas utiliser des moyens automatisés (bots, scripts) pour accéder à la plateforme.</span></li>
+    </ul>
+    <div class="highlight">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      Tout manquement à ces obligations peut entraîner la suspension immédiate de votre compte sans remboursement des sommes engagées.
+    </div>
+  </div>
+
+  <!-- 6 -->
+  <div class="section" id="s6">
+    <div class="section-header">
+      <div class="section-num">6</div>
+      <div class="section-icon"><i class="bi bi-briefcase-fill"></i></div>
+      <h2>Obligations des prestataires</h2>
+    </div>
+    <p>En tant que prestataire sur Proxim, vous vous engagez à :</p>
+    <ul>
+      <li><i class="bi bi-diamond-fill"></i><span>Exécuter les services commandés avec professionnalisme et dans les délais convenus.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Posséder les compétences, qualifications et autorisations nécessaires pour les services proposés.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Décrire vos services de manière honnête et précise.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Respecter les prix annoncés et toute négociation convenue avec le client.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Être ponctuel et réactif aux messages des clients.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Signaler tout problème ou empêchement dans les meilleurs délais.</span></li>
+    </ul>
+    <p>Le système de niveaux (Bronze, Argent, Or, Expert) est déterminé par la qualité des prestations, les avis clients et l'activité sur la plateforme.</p>
+  </div>
+
+  <!-- 7 -->
+  <div class="section" id="s7">
+    <div class="section-header">
+      <div class="section-num">7</div>
+      <div class="section-icon"><i class="bi bi-credit-card-fill"></i></div>
+      <h2>Paiements et transactions</h2>
+    </div>
+    <p>Tous les paiements sur Proxim transitent par des prestataires de paiement sécurisés (KKiaPay, FedaPay). Les montants sont libellés en Francs CFA (FCFA).</p>
+    <ul>
+      <li><i class="bi bi-diamond-fill"></i><span>Le paiement est effectué par le client après acceptation de la commande par le prestataire.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Les fonds sont maintenus en séquestre (escrow) jusqu'à validation de la fin du service par l'équipe Proxim.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Une commission de 5% est prélevée sur chaque transaction au profit de Proxim.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Le montant net est versé sur le portefeuille du prestataire après validation.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Le prestataire peut demander un retrait de son solde à tout moment.</span></li>
+    </ul>
+    <div class="highlight">
+      <i class="bi bi-lock-fill"></i>
+      Proxim ne stocke aucune donnée bancaire ou de carte de crédit. Toutes les opérations financières sont traitées de manière sécurisée par nos partenaires de paiement.
+    </div>
+  </div>
+
+  <!-- 8 -->
+  <div class="section" id="s8">
+    <div class="section-header">
+      <div class="section-num">8</div>
+      <div class="section-icon"><i class="bi bi-arrow-counterclockwise"></i></div>
+      <h2>Annulations et remboursements</h2>
+    </div>
+    <p>En cas d'annulation d'une commande :</p>
+    <ul>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Avant paiement :</strong> annulation libre par le client ou le prestataire, sans frais.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Après paiement, avant début du service :</strong> remboursement intégral au client sous réserve d'examen par l'équipe Proxim.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Service en cours :</strong> les conditions sont étudiées au cas par cas selon les preuves fournies.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span><strong>Service terminé et validé :</strong> aucun remboursement possible.</span></li>
+    </ul>
+    <div class="info-box">
+      <i class="bi bi-info-circle-fill"></i>
+      <span>Toute demande de remboursement doit être soumise via l'application dans un délai de 48 heures suivant l'incident.</span>
+    </div>
+  </div>
+
+  <!-- 9 -->
+  <div class="section" id="s9">
+    <div class="section-header">
+      <div class="section-num">9</div>
+      <div class="section-icon"><i class="bi bi-shield-exclamation"></i></div>
+      <h2>Responsabilités</h2>
+    </div>
+    <p>Proxim s'efforce d'assurer la disponibilité et la qualité de la plateforme, mais ne peut garantir :</p>
+    <ul>
+      <li><i class="bi bi-diamond-fill"></i><span>L'absence d'interruptions ou d'erreurs techniques.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>La qualité des prestations réalisées par les prestataires indépendants.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>L'exactitude de toutes les informations publiées par les utilisateurs.</span></li>
+    </ul>
+    <p>Les prestataires sont des travailleurs indépendants et ne sont pas salariés de Proxim. Proxim n'est pas responsable de leurs actes, omissions ou négligences.</p>
+  </div>
+
+  <!-- 10 -->
+  <div class="section" id="s10">
+    <div class="section-header">
+      <div class="section-num">10</div>
+      <div class="section-icon"><i class="bi bi-c-circle-fill"></i></div>
+      <h2>Propriété intellectuelle</h2>
+    </div>
+    <p>Tous les éléments de la plateforme Proxim (logo, design, code, textes, fonctionnalités) sont la propriété exclusive de Proxim et sont protégés par les lois applicables en matière de propriété intellectuelle.</p>
+    <p>En publiant du contenu sur Proxim (photos, descriptions, avis), vous accordez à Proxim une licence non exclusive, mondiale et gratuite pour afficher et utiliser ce contenu dans le cadre du fonctionnement de la plateforme.</p>
+    <p>Toute reproduction, copie ou redistribution non autorisée est strictement interdite.</p>
+  </div>
+
+  <!-- 11 -->
+  <div class="section" id="s11">
+    <div class="section-header">
+      <div class="section-num">11</div>
+      <div class="section-icon"><i class="bi bi-slash-circle-fill"></i></div>
+      <h2>Suspension et résiliation</h2>
+    </div>
+    <p>Proxim se réserve le droit de suspendre ou résilier tout compte en cas de :</p>
+    <ul>
+      <li><i class="bi bi-diamond-fill"></i><span>Violation des présentes conditions d'utilisation.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Comportement frauduleux, abusif ou illégal.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Signalements répétés et avérés de la part d'autres utilisateurs.</span></li>
+      <li><i class="bi bi-diamond-fill"></i><span>Non-respect des obligations de paiement.</span></li>
+    </ul>
+    <p>Vous pouvez supprimer votre compte à tout moment depuis les paramètres de l'application.</p>
+  </div>
+
+  <!-- 12 -->
+  <div class="section" id="s12">
+    <div class="section-header">
+      <div class="section-num">12</div>
+      <div class="section-icon"><i class="bi bi-pencil-fill"></i></div>
+      <h2>Modifications des conditions</h2>
+    </div>
+    <p>Proxim peut modifier les présentes conditions à tout moment. Les modifications entrent en vigueur dès leur publication sur la plateforme.</p>
+    <p>En continuant à utiliser Proxim après une modification, vous acceptez les nouvelles conditions.</p>
+    <p>Pour les modifications substantielles, nous vous informerons par notification push ou par email.</p>
+  </div>
+
+  <!-- 13 -->
+  <div class="section" id="s13">
+    <div class="section-header">
+      <div class="section-num">13</div>
+      <div class="section-icon"><i class="bi bi-envelope-fill"></i></div>
+      <h2>Contact</h2>
+    </div>
+    <p>Pour toute question relative aux présentes conditions d'utilisation :</p>
+    <ul>
+      <li><i class="bi bi-envelope-fill"></i><span><strong>Email :</strong> support@proxim.bj</span></li>
+      <li><i class="bi bi-geo-alt-fill"></i><span><strong>Adresse :</strong> GETECH LAB, Védoko, Cotonou, Bénin</span></li>
+      <li><i class="bi bi-phone-fill"></i><span><strong>Via l'application :</strong> rubrique "Aide et support"</span></li>
+    </ul>
+  </div>
+
+  <!-- Contact box -->
+  <div class="contact-box">
+    <div class="contact-icon">
+      <i class="bi bi-chat-dots-fill"></i>
+    </div>
+    <h3>Une question ?</h3>
+    <p>Notre équipe est disponible pour répondre à vos interrogations sur ces conditions.</p>
+    <a href="mailto:support@proxim.bj" class="contact-btn">
+      <i class="bi bi-envelope-fill"></i>
+      Nous contacter
+    </a>
+  </div>
+
+</div>
+
+<footer>
+  &copy; 2025 <span>Proxim</span> — GETECH LAB, Cotonou, Bénin. Tous droits réservés.
+</footer>
+
+</body>
+</html>
