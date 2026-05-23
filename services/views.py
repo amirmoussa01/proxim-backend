@@ -158,23 +158,19 @@ def modifier_service(request, pk):
     """
     Modification d'un service avec gestion complète des images.
 
-    Champs texte habituels (titre, description, prix_base, etc.) : envoyés normalement.
+    Champs texte : titre, description, pricing_type, prix_base, etc.
 
-    Gestion des images via ces clés dans le body multipart :
-      - images_a_supprimer : liste d'IDs (ServiceImage) à supprimer, séparés par virgule
-                             ex: "12,15,18"
-      - images             : fichiers image à ajouter (multiples acceptés)
-                             clé répétée : images, images, images...
-      - image_principale   : ID (ServiceImage) de l'image à définir comme principale
-                             (peut être une des nouvelles images — non supporté,
-                              utilise definir_image_principale après upload dans ce cas)
+    Gestion images via body multipart :
+      - images_a_supprimer : IDs séparés par virgule  ex: "12,15"
+      - images             : fichiers image (clé répétée)
+      - image_principale   : ID de l'image à définir comme principale
     """
     try:
         service = Service.objects.get(pk=pk, prestatire=request.user.prestatire_profile)
     except Service.DoesNotExist:
         return Response({'error': 'Service introuvable ou non autorise'}, status=status.HTTP_404_NOT_FOUND)
 
-    # ── 1. Modifier les champs texte du service ────────────────
+    # ── 1. Modifier les champs texte ──────────────────────────
     serializer = ServiceCreateSerializer(service, data=request.data, partial=True)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -184,12 +180,14 @@ def modifier_service(request, pk):
     ids_a_supprimer_raw = request.data.get('images_a_supprimer', '')
     if ids_a_supprimer_raw:
         try:
-            # Accepte "12,15,18" ou ["12","15","18"]
             if isinstance(ids_a_supprimer_raw, list):
-                ids_a_supprimer = [int(i) for i in ids_a_supprimer_raw]
+                ids_a_supprimer = [int(i) for i in ids_a_supprimer_raw if str(i).strip()]
             else:
-                ids_a_supprimer = [int(i.strip()) for i in str(ids_a_supprimer_raw).split(',') if i.strip()]
-
+                ids_a_supprimer = [
+                    int(i.strip())
+                    for i in str(ids_a_supprimer_raw).split(',')
+                    if i.strip()
+                ]
             images_a_supprimer = ServiceImage.objects.filter(
                 pk__in=ids_a_supprimer,
                 service=service,
@@ -197,30 +195,39 @@ def modifier_service(request, pk):
             avait_principale = images_a_supprimer.filter(is_principale=True).exists()
             images_a_supprimer.delete()
 
-            # Si on a supprimé la principale, promouvoir la suivante
+            # Promouvoir la suivante si la principale était supprimée
             if avait_principale:
                 premiere = service.images.order_by('ordre').first()
                 if premiere:
                     premiere.is_principale = True
                     premiere.save()
         except (ValueError, TypeError):
-            pass  # IDs invalides → on ignore silencieusement
+            pass
 
-    # ── 3. Ajouter les nouvelles images ───────────────────────
+    # ── 3. Ajouter les nouvelles images via Cloudinary ────────
+    # CloudinaryField gère l'upload automatiquement quand on lui
+    # passe un InMemoryUploadedFile via le serializer.
     nouvelles_images = request.FILES.getlist('images')
     nb_existantes = service.images.count()
-    images_ajoutees = []
 
     for i, img_file in enumerate(nouvelles_images):
         if nb_existantes + i >= 10:
-            # Limite 10 images par service atteinte
             break
-        img_serializer = ServiceImageSerializer(data={'image': img_file})
+        # On passe directement le fichier au serializer —
+        # CloudinaryField se charge de l'upload vers Cloudinary
+        img_serializer = ServiceImageSerializer(
+            data={
+                'service': service.id,
+                'image': img_file,
+                'is_principale': False,
+                'ordre': nb_existantes + i,
+            }
+        )
         if img_serializer.is_valid():
-            nouvelle_img = img_serializer.save(service=service, ordre=nb_existantes + i)
-            images_ajoutees.append(nouvelle_img)
+            img_serializer.save(service=service)
+        # Si invalide on passe silencieusement pour ne pas bloquer
 
-    # Si aucune image principale n'existe encore, promouvoir la première disponible
+    # Si aucune image principale n'existe encore, promouvoir la première
     if not service.images.filter(is_principale=True).exists():
         premiere = service.images.order_by('ordre').first()
         if premiere:
@@ -231,15 +238,15 @@ def modifier_service(request, pk):
     image_principale_id = request.data.get('image_principale')
     if image_principale_id:
         try:
-            img_principale = ServiceImage.objects.get(
+            img = ServiceImage.objects.get(
                 pk=int(image_principale_id),
                 service=service,
             )
             service.images.filter(is_principale=True).update(is_principale=False)
-            img_principale.is_principale = True
-            img_principale.save()
+            img.is_principale = True
+            img.save()
         except (ServiceImage.DoesNotExist, ValueError, TypeError):
-            pass  # ID invalide → on ignore
+            pass
 
     # ── 5. Retourner le service complet mis à jour ─────────────
     service.refresh_from_db()
@@ -278,7 +285,6 @@ def mes_services(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def images_service(request, pk):
-    """Lister toutes les images d'un service."""
     try:
         service = Service.objects.get(pk=pk, prestatire=request.user.prestatire_profile)
     except Service.DoesNotExist:
@@ -291,35 +297,47 @@ def images_service(request, pk):
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser])
 def ajouter_image_service(request, pk):
-    """Ajouter une image à un service (endpoint unitaire)."""
     try:
         service = Service.objects.get(pk=pk, prestatire=request.user.prestatire_profile)
     except Service.DoesNotExist:
         return Response({'error': 'Service introuvable ou non autorise'}, status=status.HTTP_404_NOT_FOUND)
 
     if service.images.count() >= 10:
-        return Response({'error': 'Limite atteinte : 10 images maximum par service'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {'error': 'Limite atteinte : 10 images maximum par service'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
-    serializer = ServiceImageSerializer(data=request.data)
-    if serializer.is_valid():
-        is_principale = serializer.validated_data.get('is_principale', False)
-        if is_principale:
-            service.images.filter(is_principale=True).update(is_principale=False)
-        serializer.save(service=service)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    img_file = request.FILES.get('image')
+    if not img_file:
+        return Response({'error': 'Aucune image fournie'}, status=status.HTTP_400_BAD_REQUEST)
+
+    is_principale = request.data.get('is_principale', 'false').lower() == 'true'
+    if is_principale:
+        service.images.filter(is_principale=True).update(is_principale=False)
+
+    img_serializer = ServiceImageSerializer(
+        data={
+            'service': service.id,
+            'image': img_file,
+            'is_principale': is_principale,
+            'ordre': service.images.count(),
+        }
+    )
+    if img_serializer.is_valid():
+        img_serializer.save(service=service)
+        return Response(img_serializer.data, status=status.HTTP_201_CREATED)
+    return Response(img_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def supprimer_image_service(request, pk):
-    """Supprimer une image de service. pk = ID de l'image."""
     try:
         image = ServiceImage.objects.get(pk=pk, service__prestatire=request.user.prestatire_profile)
         etait_principale = image.is_principale
         service = image.service
         image.delete()
-        # Promouvoir la suivante si c'était la principale
         if etait_principale:
             prochaine = service.images.order_by('ordre').first()
             if prochaine:
@@ -333,7 +351,6 @@ def supprimer_image_service(request, pk):
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def definir_image_principale(request, pk):
-    """Définir une image comme principale. pk = ID de l'image."""
     try:
         image = ServiceImage.objects.select_related('service').get(
             pk=pk, service__prestatire=request.user.prestatire_profile
@@ -350,10 +367,6 @@ def definir_image_principale(request, pk):
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def reordonner_images_service(request, pk):
-    """
-    Réordonner les images d'un service. pk = ID du service.
-    Body : { "ordre": [id1, id2, id3] }
-    """
     try:
         service = Service.objects.get(pk=pk, prestatire=request.user.prestatire_profile)
     except Service.DoesNotExist:
@@ -366,7 +379,10 @@ def reordonner_images_service(request, pk):
     ids_service = set(service.images.values_list('id', flat=True))
     for img_id in ordre_ids:
         if img_id not in ids_service:
-            return Response({'error': f'Image {img_id} n appartient pas a ce service'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'error': f'Image {img_id} n appartient pas a ce service'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     for index, img_id in enumerate(ordre_ids):
         ServiceImage.objects.filter(pk=img_id).update(ordre=index)
@@ -394,7 +410,9 @@ def ajouter_parametre(request, pk):
 @permission_classes([IsAuthenticated])
 def modifier_parametre(request, pk):
     try:
-        parametre = ServiceParameter.objects.get(pk=pk, service__prestatire=request.user.prestatire_profile)
+        parametre = ServiceParameter.objects.get(
+            pk=pk, service__prestatire=request.user.prestatire_profile
+        )
     except ServiceParameter.DoesNotExist:
         return Response({'error': 'Parametre introuvable'}, status=status.HTTP_404_NOT_FOUND)
     serializer = ServiceParameterSerializer(parametre, data=request.data, partial=True)
@@ -408,7 +426,9 @@ def modifier_parametre(request, pk):
 @permission_classes([IsAuthenticated])
 def supprimer_parametre(request, pk):
     try:
-        parametre = ServiceParameter.objects.get(pk=pk, service__prestatire=request.user.prestatire_profile)
+        parametre = ServiceParameter.objects.get(
+            pk=pk, service__prestatire=request.user.prestatire_profile
+        )
         parametre.delete()
         return Response({'message': 'Parametre supprime'}, status=status.HTTP_204_NO_CONTENT)
     except ServiceParameter.DoesNotExist:
@@ -419,7 +439,9 @@ def supprimer_parametre(request, pk):
 @permission_classes([IsAuthenticated])
 def ajouter_option_parametre(request, pk):
     try:
-        parametre = ServiceParameter.objects.get(pk=pk, service__prestatire=request.user.prestatire_profile)
+        parametre = ServiceParameter.objects.get(
+            pk=pk, service__prestatire=request.user.prestatire_profile
+        )
     except ServiceParameter.DoesNotExist:
         return Response({'error': 'Parametre introuvable'}, status=status.HTTP_404_NOT_FOUND)
     serializer = ServiceParameterOptionSerializer(data=request.data)
@@ -460,7 +482,9 @@ def ajouter_disponibilite(request, pk):
 @permission_classes([IsAuthenticated])
 def modifier_disponibilite(request, pk):
     try:
-        dispo = Availability.objects.get(pk=pk, service__prestatire=request.user.prestatire_profile)
+        dispo = Availability.objects.get(
+            pk=pk, service__prestatire=request.user.prestatire_profile
+        )
     except Availability.DoesNotExist:
         return Response({'error': 'Disponibilite introuvable'}, status=status.HTTP_404_NOT_FOUND)
     serializer = AvailabilitySerializer(dispo, data=request.data, partial=True)
@@ -474,7 +498,9 @@ def modifier_disponibilite(request, pk):
 @permission_classes([IsAuthenticated])
 def supprimer_disponibilite(request, pk):
     try:
-        dispo = Availability.objects.get(pk=pk, service__prestatire=request.user.prestatire_profile)
+        dispo = Availability.objects.get(
+            pk=pk, service__prestatire=request.user.prestatire_profile
+        )
         dispo.delete()
         return Response({'message': 'Disponibilite supprimee'}, status=status.HTTP_204_NO_CONTENT)
     except Availability.DoesNotExist:
