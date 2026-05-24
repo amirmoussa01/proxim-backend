@@ -41,10 +41,6 @@ class AvailabilitySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class PrestatireDetailSerializer(serializers.SerializerMethodField):
-    pass
-
-
 class ServiceSerializer(serializers.ModelSerializer):
     images = ServiceImageSerializer(many=True, read_only=True)
     parametres = ServiceParameterSerializer(many=True, read_only=True)
@@ -70,7 +66,10 @@ class ServiceSerializer(serializers.ModelSerializer):
         nb_services = p.services.filter(is_available=True).count()
         return {
             'id': p.id,
-            'nom': f'{p.prenom} {p.nom}',
+            # ← AJOUT : ID du User Django (pour le signalement)
+            'user_id': p.user.id,
+            'prenom': p.prenom,
+            'nom': p.nom,
             'niveau': p.niveau,
             'is_verified': p.is_verified,
             'avatar_url': avatar_url,
