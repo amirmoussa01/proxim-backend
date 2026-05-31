@@ -167,16 +167,6 @@ def creer_service(request):
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def modifier_service(request, pk):
-    """
-    Modification d'un service avec gestion complète des images.
-
-    Champs texte : titre, description, pricing_type, prix_base, etc.
-
-    Gestion images via body multipart :
-      - images_a_supprimer : IDs séparés par virgule  ex: "12,15"
-      - images             : fichiers image (clé répétée)
-      - image_principale   : ID de l'image à définir comme principale
-    """
     try:
         service = Service.objects.get(pk=pk, prestatire=request.user.prestatire_profile)
     except Service.DoesNotExist:
@@ -188,7 +178,19 @@ def modifier_service(request, pk):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     serializer.save()
 
-    # ── 2. Supprimer les images demandées ─────────────────────
+    # ── 2. Remplir lat/lon depuis le prestataire si toujours vides ────
+    prestatire = request.user.prestatire_profile
+    modifie = False
+    if service.latitude is None and prestatire.latitude:
+        service.latitude = prestatire.latitude
+        modifie = True
+    if service.longitude is None and prestatire.longitude:
+        service.longitude = prestatire.longitude
+        modifie = True
+    if modifie:
+        service.save(update_fields=['latitude', 'longitude'])
+
+    # ── 3. Supprimer les images demandées ─────────────────────
     ids_a_supprimer_raw = request.data.get('images_a_supprimer', '')
     if ids_a_supprimer_raw:
         try:
@@ -207,7 +209,6 @@ def modifier_service(request, pk):
             avait_principale = images_a_supprimer.filter(is_principale=True).exists()
             images_a_supprimer.delete()
 
-            # Promouvoir la suivante si la principale était supprimée
             if avait_principale:
                 premiere = service.images.order_by('ordre').first()
                 if premiere:
@@ -216,17 +217,13 @@ def modifier_service(request, pk):
         except (ValueError, TypeError):
             pass
 
-    # ── 3. Ajouter les nouvelles images via Cloudinary ────────
-    # CloudinaryField gère l'upload automatiquement quand on lui
-    # passe un InMemoryUploadedFile via le serializer.
+    # ── 4. Ajouter les nouvelles images via Cloudinary ────────
     nouvelles_images = request.FILES.getlist('images')
     nb_existantes = service.images.count()
 
     for i, img_file in enumerate(nouvelles_images):
         if nb_existantes + i >= 10:
             break
-        # On passe directement le fichier au serializer —
-        # CloudinaryField se charge de l'upload vers Cloudinary
         img_serializer = ServiceImageSerializer(
             data={
                 'service': service.id,
@@ -237,7 +234,6 @@ def modifier_service(request, pk):
         )
         if img_serializer.is_valid():
             img_serializer.save(service=service)
-        # Si invalide on passe silencieusement pour ne pas bloquer
 
     # Si aucune image principale n'existe encore, promouvoir la première
     if not service.images.filter(is_principale=True).exists():
@@ -246,7 +242,7 @@ def modifier_service(request, pk):
             premiere.is_principale = True
             premiere.save()
 
-    # ── 4. Changer l'image principale si demandé ──────────────
+    # ── 5. Changer l'image principale si demandé ──────────────
     image_principale_id = request.data.get('image_principale')
     if image_principale_id:
         try:
@@ -260,7 +256,7 @@ def modifier_service(request, pk):
         except (ServiceImage.DoesNotExist, ValueError, TypeError):
             pass
 
-    # ── 5. Retourner le service complet mis à jour ─────────────
+    # ── 6. Retourner le service complet mis à jour ─────────────
     service.refresh_from_db()
     return Response(ServiceSerializer(service).data)
 
