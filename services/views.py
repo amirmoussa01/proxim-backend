@@ -147,6 +147,18 @@ def creer_service(request):
     serializer = ServiceCreateSerializer(data=request.data)
     if serializer.is_valid():
         service = serializer.save(prestatire=prestatire)
+
+        # Remplir lat/lon depuis le prestataire si non fournis
+        modifie = False
+        if service.latitude is None and prestatire.latitude:
+            service.latitude = prestatire.latitude
+            modifie = True
+        if service.longitude is None and prestatire.longitude:
+            service.longitude = prestatire.longitude
+            modifie = True
+        if modifie:
+            service.save(update_fields=['latitude', 'longitude'])
+
         return Response(ServiceSerializer(service).data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
